@@ -116,7 +116,7 @@ LLM_PROVIDER=offline
 4. 控制心率与血压、避免禁忌用药、呼叫相关专科；
 5. 提交诊断并查看 OSCE 评分与操作时间线。
 
-病例数据位于 `aic_mech/app/data/case_chest_pain.json` 与 `aic_mech/app/data/cases/`，病例索引为 `aic_mech/app/data/cases/index.json`；专家决策图位于 `aic_mech/app/data/expert_golden_dag.json`。旧版的通用病例说明与动作/对话设计文档保存在 `aic_mech/docs/`。
+病例数据位于 `aic_mech/app/data/case_chest_pain.json` 与 `aic_mech/app/data/cases/`，病例索引为 `aic_mech/app/data/cases/index.json`；专家决策图位于 `aic_mech/app/data/expert_golden_dag.json`。
 
 ## 系统结构
 
@@ -131,7 +131,6 @@ ClinMind-AI-v2/
 └── aic_mech/
     ├── app/                        # FastAPI、病例、引擎和数据模型
     │   ├── data/cases/             # 5 个通用病例及病例索引
-    ├── docs/                       # 通用病例规则与动作/对话设计
     ├── static/                     # 接诊室、工作站及旧版兼容前端
     ├── tests/                      # 后端、静态资源和浏览器联调测试
     ├── config.py                   # 服务、模型和仿真配置

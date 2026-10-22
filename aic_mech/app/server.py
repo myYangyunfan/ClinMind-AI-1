@@ -16,7 +16,6 @@ from app.api.routes_case import router as case_router
 from app.api.routes_action import router as action_router
 from app.api.routes_eval import router as eval_router
 from app.api.routes_config import router as config_router
-from app.api.routes_game import router as game_router
 from app.api.websocket_feed import router as ws_router
 from app.core.session_manager import SessionStore
 
@@ -63,7 +62,6 @@ def create_app() -> FastAPI:
     app.include_router(action_router)
     app.include_router(eval_router)
     app.include_router(config_router)
-    app.include_router(game_router)
     app.include_router(ws_router)
 
     # Ensure static directory exists

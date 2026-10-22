@@ -74,15 +74,6 @@ D:/workspace/aic_mech/
 │       ├── dag_view.js              # 基于 ECharts 的思维拓扑图与六维雷达图
 │       └── audio_alerts.js          # Web Audio API 原生监护仪蜂鸣与危急值警报
 │
-├── docs/                            # 国家级竞赛申报与全景技术材料
-│   ├── PRD_ClinMind_AI.md           # 完整产品需求文档 (v1.0.0 规范基线)
-│   ├── ClinMind_AI_参赛技术方案申报书.md # 万字级技术方案申报书 (严格对照赛题八大章节)
-│   ├── Case_Specification_Chest_Pain.md # 急性胸痛示范病例医学全景规范说明书
-│   ├── ARCH_ClinMind_AI.md          # 软件全景架构设计书与技术规格
-│   ├── QA_TEST_REPORT.md            # 全链路 36 项自动化测试质量验收报告 (100% Pass)
-│   ├── sequence-diagram.mermaid     # 系统全流程调用时序图
-│   └── class-diagram.mermaid        # 核心类图与领域实体关系图
-│
 ├── tests/                           # 自动化测试套件 (覆盖率 69.5% / 核心引擎 >90%)
 │   ├── test_engines.py              # 核心引擎功能自检
 │   ├── test_e2e_edge_cases.py       # 极限边界、熔断致死与并发用例
