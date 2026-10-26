@@ -1,3 +1,11 @@
+"""静态前端契约测试。
+
+前端只有两个入口页面：接诊室 (reception.html) 与电脑工作站 (workstation.html)，
+共用 scene.css（样式单一来源）、scene.js（交互层）、audio_alerts.js（监护音）。
+
+旧版三栏工作台 (index.html / app.js / ecg_canvas.js / dag_view.js / zoom_adapter.js /
+custom.css) 已整体移除。这里保留一条反悔护栏：被删除的入口不得以任何形式回流成死引用。
+"""
 import os
 import re
 import unittest
@@ -5,141 +13,106 @@ import unittest
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(PROJECT_ROOT, "static")
 
+PAGES = ("reception.html", "workstation.html")
+SCENE_CSS = os.path.join(STATIC_DIR, "css", "scene.css")
+SCENE_JS = os.path.join(STATIC_DIR, "js", "scene.js")
+AUDIO_JS = os.path.join(STATIC_DIR, "js", "audio_alerts.js")
+
+# 已删除的旧版工作台资源：若重新出现在 static/ 或被页面引用，说明死代码被带回来了
+LEGACY_ASSETS = (
+    "index.html",
+    "css/custom.css",
+    "js/app.js",
+    "js/ecg_canvas.js",
+    "js/dag_view.js",
+    "js/zoom_adapter.js",
+)
+
+
+def _slurp(path):
+    with open(path, "r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def _page(name):
+    return _slurp(os.path.join(STATIC_DIR, name))
+
 
 class TestStaticAssetsConsistency(unittest.TestCase):
-    """Verifies static frontend files, HTML tags, script linkages, and DOM ID integrity."""
+    """双页前端：资源存在性、引用可达性、样式与交互层契约。"""
 
     def test_static_files_existence(self):
-        """Verify all essential static files exist in static/ directory."""
-        required_files = [
-            os.path.join(STATIC_DIR, "index.html"),
-            os.path.join(STATIC_DIR, "css", "custom.css"),
-            os.path.join(STATIC_DIR, "js", "app.js"),
-            os.path.join(STATIC_DIR, "js", "ecg_canvas.js"),
-            os.path.join(STATIC_DIR, "js", "audio_alerts.js"),
-            os.path.join(STATIC_DIR, "js", "dag_view.js"),
-            os.path.join(STATIC_DIR, "js", "zoom_adapter.js"),
-        ]
-        for fpath in required_files:
-            self.assertTrue(os.path.isfile(fpath), f"Missing static asset: {fpath}")
+        """双页及其共享资源必须存在。"""
+        for name in PAGES:
+            path = os.path.join(STATIC_DIR, name)
+            self.assertTrue(os.path.isfile(path), f"缺少页面: {path}")
+        for path in (SCENE_CSS, SCENE_JS, AUDIO_JS):
+            self.assertTrue(os.path.isfile(path), f"缺少共享资源: {path}")
 
-    def test_html_script_and_css_tags_linkage(self):
-        """Verify index.html includes correct link and script references."""
-        index_path = os.path.join(STATIC_DIR, "index.html")
-        with open(index_path, "r", encoding="utf-8") as f:
-            html = f.read()
+    def test_legacy_workbench_removed(self):
+        """旧版工作台已移除，不得重新出现在 static/ 或任一页面的引用中。"""
+        for rel in LEGACY_ASSETS:
+            self.assertFalse(
+                os.path.exists(os.path.join(STATIC_DIR, rel)),
+                f"旧版工作台资源不应存在: static/{rel}",
+            )
+        for name in PAGES:
+            html = _page(name)
+            for rel in LEGACY_ASSETS:
+                self.assertNotIn(rel, html, f"{name} 仍引用已删除的 {rel}")
 
-        # Check CSS and external libraries
-        self.assertIn("custom.css", html)
-        self.assertIn("tailwindcss", html)
-        self.assertIn("echarts", html)
+    def test_pages_load_shared_scene_layer(self):
+        """两页必须加载同一套 scene.css / scene.js / audio_alerts.js，且不再内联样式。"""
+        for name in PAGES:
+            html = _page(name)
+            self.assertIn("/static/css/scene.css", html, f"{name} 未加载 scene.css")
+            self.assertIn("/static/js/scene.js", html, f"{name} 未加载 scene.js")
+            self.assertIn("/static/js/audio_alerts.js", html, f"{name} 未加载 audio_alerts.js")
+            self.assertNotIn(
+                "<style", html, f"{name} 出现内联 <style>，样式必须留在 scene.css"
+            )
 
-        # Check JS modules
-        self.assertIn("audio_alerts.js", html)
-        self.assertIn("ecg_canvas.js", html)
-        self.assertIn("dag_view.js", html)
-        self.assertIn("app.js", html)
-        self.assertIn("zoom_adapter.js", html)
+    def test_every_static_reference_resolves(self):
+        """页面引用的每个 /static/ 资源都必须真实存在，防止删文件后留下 404 死链。"""
+        for name in PAGES:
+            refs = re.findall(r'(?:href|src)="(/static/[^"?#]+)', _page(name))
+            self.assertTrue(refs, f"{name} 未引用任何 /static/ 资源")
+            for ref in refs:
+                target = os.path.join(
+                    STATIC_DIR, ref[len("/static/"):].replace("/", os.sep)
+                )
+                self.assertTrue(os.path.isfile(target), f"{name} 引用了不存在的资源: {ref}")
 
-    def test_zoom_adapter_structure_integrity(self):
-        """Verify the Ctrl+ zoom-adaptation layer is correctly wired to the page shell."""
-        index_path = os.path.join(STATIC_DIR, "index.html")
-        with open(index_path, "r", encoding="utf-8") as f:
-            html = f.read()
+    def test_scene_class_names_have_css_rules(self):
+        """scene.js 动态挂载的 scene-* 元素必须在 scene.css 中有对应规则。"""
+        code = _slurp(SCENE_JS)
+        css = _slurp(SCENE_CSS)
+        names = set(re.findall(r"""["'](scene-[a-z0-9-]+)["']""", code))
+        self.assertTrue(names, "scene.js 中未找到 scene-* 类名")
+        missing = sorted(n for n in names if f".{n}" not in css)
+        self.assertEqual(missing, [], f"scene.js 使用但 scene.css 缺规则: {missing}")
 
-        # 1) 必须存在缩放根容器，且作为 body 的直接子元素包裹全部内容
-        self.assertIn('id="zoomRoot"', html, "缺少 #zoomRoot 缩放根容器")
-        open_tags = html.count("<div id=\"zoomRoot\"")
-        close_tags = html.count("</div><!-- /#zoomRoot -->")
-        self.assertEqual(open_tags, 1, "#zoomRoot 开标签应恰好出现一次")
-        self.assertEqual(close_tags, 1, "#zoomRoot 闭标签应恰好出现一次，且必须闭合")
-
-        # 2) 缩放指示浮层
-        self.assertIn('id="zoomIndicator"', html)
-
-        # 3) body 不应再用 h-screen（改由 zoomRoot 承担满屏职责，避免双重滚动）
-        body_tag = re.search(r"<body[^>]*>", html)
-        self.assertIsNotNone(body_tag)
-        self.assertNotIn("h-screen", body_tag.group(0),
-                         "body 不应保留 h-screen，满屏职责已移交 #zoomRoot")
-
-        # 4) 适配脚本自身完整性
-        zoom_path = os.path.join(STATIC_DIR, "js", "zoom_adapter.js")
-        with open(zoom_path, "r", encoding="utf-8") as f:
-            code = f.read()
-
-        # 必须读取 visualViewport —— 这是桌面 Ctrl+ 缩放唯一可靠的信号源
-        self.assertIn("visualViewport", code)
-        # 必须对 #zoomRoot 施加 transform 缩放抵消
-        self.assertIn("zoomRoot", code)
-        self.assertIn("transform", code)
-        self.assertIn("scale(", code)
-        # 括号配平（防止语法错误导致整个模块静默失效）
-        self.assertEqual(code.count("{") - code.count("}"), 0, "JS 花括号不配平")
-        self.assertEqual(code.count("(") - code.count(")"), 0, "JS 圆括号不配平")
-
-    def test_zoom_layer_css_rules_present(self):
-        """Verify custom.css contains the zoom-adaptation layer rules."""
-        css_path = os.path.join(STATIC_DIR, "css", "custom.css")
-        with open(css_path, "r", encoding="utf-8") as f:
-            css = f.read()
-
-        self.assertIn("#zoomRoot", css, "缺少 #zoomRoot 缩放定位规则")
-        self.assertIn("transform-origin", css, "缺少 transform-origin 设置")
-        self.assertIn("#zoomIndicator", css, "缺少缩放指示浮层样式")
-        self.assertIn("text-size-adjust", css, "缺少整页字号缩放锁定")
-
-    def test_dom_element_ids_referenced_in_js_exist_in_html(self):
-        """Verify every document.getElementById('...') in JS has a corresponding element in HTML."""
-        index_path = os.path.join(STATIC_DIR, "index.html")
-        with open(index_path, "r", encoding="utf-8") as f:
-            html = f.read()
-
-        html_ids = set(re.findall(r'id=["\']([^"\']+)["\']', html))
-
-        js_files = [
-            os.path.join(STATIC_DIR, "js", "app.js"),
-            os.path.join(STATIC_DIR, "js", "ecg_canvas.js"),
-            os.path.join(STATIC_DIR, "js", "audio_alerts.js"),
-            os.path.join(STATIC_DIR, "js", "dag_view.js"),
-            os.path.join(STATIC_DIR, "js", "zoom_adapter.js"),
-        ]
-
-        referenced_ids = set()
-        for jspath in js_files:
-            with open(jspath, "r", encoding="utf-8") as f:
-                code = f.read()
-            found = re.findall(r'getElementById\s*\(\s*["\']([^"\']+)["\']\s*\)', code)
-            referenced_ids.update(found)
-
-        missing = referenced_ids - html_ids
-        self.assertEqual(
-            missing,
-            set(),
-            f"JavaScript referenced DOM IDs that do not exist in index.html: {missing}",
-        )
+    def test_scene_waveform_renderer(self):
+        """监护波形由 scene.js 生成 SVG polyline 点集，工作站须保留波形容器。"""
+        code = _slurp(SCENE_JS)
+        for token in (
+            "function ecgY",
+            "renderDynamicWaveform",
+            "setAttribute('points'",
+            "waveLines",
+        ):
+            self.assertIn(token, code, f"scene.js 缺少波形渲染要素: {token}")
+        workstation = _page("workstation.html")
+        self.assertIn('class="wave-svg"', workstation, "工作站缺少 wave-svg 波形容器")
+        self.assertIn("<polyline", workstation, "工作站缺少 polyline 波形线")
 
     def test_audio_alerts_synthesizer_config(self):
-        """Verify Web Audio API synthesizer constants and fallback safety."""
-        audio_path = os.path.join(STATIC_DIR, "js", "audio_alerts.js")
-        with open(audio_path, "r", encoding="utf-8") as f:
-            code = f.read()
-
+        """Web Audio 合成器常量与降级保护。"""
+        code = _slurp(AUDIO_JS)
         self.assertIn("AudioContext", code)
-        self.assertIn("900", code)  # High alarm frequency (IEC 60601-1-8 standard)
+        self.assertIn("900", code)  # 高优先级报警频率 (IEC 60601-1-8)
         self.assertIn("playQRSBeep", code)
         self.assertIn("playCriticalAlarm", code)
-
-    def test_ecg_canvas_waveform_renderer(self):
-        """Verify ECG canvas math generator and drawing context."""
-        ecg_path = os.path.join(STATIC_DIR, "js", "ecg_canvas.js")
-        with open(ecg_path, "r", encoding="utf-8") as f:
-            code = f.read()
-
-        self.assertIn("getContext", code)
-        self.assertIn("_renderFrame", code)
-        self.assertIn("updateVitals", code)
-        self.assertIn("sweepSpeed", code)
 
 
 if __name__ == "__main__":

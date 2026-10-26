@@ -71,17 +71,11 @@ aic_mech/
 ├── static/                          # 前端 (HTML5/CSS3/Vanilla JS，无构建步骤)
 │   ├── reception.html               # 接诊室 · 沉浸式医患沟通场景
 │   ├── workstation.html             # 电脑工作站 · 监护/病历/操作/六维雷达
-│   ├── index.html                   # 旧版三栏工作台 (兼容入口，仍可用)
 │   ├── css/
-│   │   ├── scene.css                # 接诊室与工作站共享场景样式 (单一来源)
-│   │   └── custom.css               # 旧版工作台专用样式
+│   │   └── scene.css                # 接诊室与工作站共享场景样式 (单一来源)
 │   └── js/
 │       ├── scene.js                 # 双页共享交互层：场景、监护、接诊记录、报告、配置
-│       ├── audio_alerts.js          # Web Audio 监护仪蜂鸣与危急值警报 (三页共用)
-│       ├── app.js                   # 旧版工作台状态同步与 WebSocket 客户端
-│       ├── ecg_canvas.js            # 旧版工作台 60fps Canvas 心电/血氧波形
-│       ├── dag_view.js              # 旧版工作台 ECharts 思维拓扑图与六维雷达
-│       └── zoom_adapter.js          # 旧版工作台缩放自适应层
+│       └── audio_alerts.js          # Web Audio 监护仪蜂鸣与危急值警报 (双页共用)
 │
 ├── tests/                           # 自动化测试套件 (53 项，语句覆盖率 56.3%)
 │   ├── test_engines.py              # 核心引擎功能自检
@@ -89,7 +83,7 @@ aic_mech/
 │   ├── test_ai_native_capabilities.py # 多智能体原生能力用例
 │   ├── test_v2_regressions.py       # v2 回归用例
 │   ├── test_session_backend.py      # 会话持久化/隔离/结案冻结与静态资源可达性
-│   ├── test_static_assets.py        # 旧版工作台前端资源与 DOM 一致性校验
+│   ├── test_static_assets.py        # 双页前端资源可达性与样式/交互层契约校验
 │   ├── browser_smoke.cjs            # Puppeteer 冒烟脚本 (需手动执行)
 │   ├── browser_v2.cjs               # Puppeteer 双页联调脚本 (需手动执行)
 │   └── run_all_tests.py             # 综合测试运行器与代码覆盖率统计

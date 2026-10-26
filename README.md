@@ -58,7 +58,6 @@ python -m venv .venv
 | --- | --- |
 | 接诊室 | [http://127.0.0.1:8000/static/reception.html](http://127.0.0.1:8000/static/reception.html) |
 | 电脑工作站 | [http://127.0.0.1:8000/static/workstation.html](http://127.0.0.1:8000/static/workstation.html) |
-| 旧版工作台（兼容入口） | [http://127.0.0.1:8000/static/index.html](http://127.0.0.1:8000/static/index.html) |
 | FastAPI 文档 | [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) |
 | 健康检查 | [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health) |
 
@@ -130,7 +129,7 @@ ClinMind-AI-1/
 └── aic_mech/
     ├── app/                        # FastAPI、病例、引擎和数据模型
     │   └── data/cases/             # 5 个通用病例及病例索引
-    ├── static/                     # 接诊室、工作站及旧版兼容前端
+    ├── static/                     # 接诊室与工作站前端（两页共用 scene.css / scene.js）
     ├── tests/                      # 后端、静态资源和浏览器联调测试
     ├── config.py                   # 服务、模型和仿真配置
     ├── main.py                     # Uvicorn 启动入口
