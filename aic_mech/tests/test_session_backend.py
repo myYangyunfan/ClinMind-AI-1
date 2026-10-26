@@ -11,7 +11,7 @@ from app.core.session_manager import SessionStore
 from app.server import app
 
 
-class GameBackendTests(unittest.TestCase):
+class SessionBackendTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.path_patch = patch.object(config, "RUNTIME_DIR", Path(self.temp.name))
@@ -75,7 +75,7 @@ class GameBackendTests(unittest.TestCase):
 
     def test_new_ui_and_health_are_served(self):
         self.assertEqual(self.client.get('/api/health').json()['status'], 'ok')
-        for page in ['reception.html','workstation.html','js/game.js','css/game.css']:
+        for page in ['reception.html','workstation.html','js/scene.js','css/scene.css']:
             self.assertEqual(self.client.get('/static/'+page).status_code, 200)
 
     def test_configuration_hides_credentials_and_requires_opt_in(self):

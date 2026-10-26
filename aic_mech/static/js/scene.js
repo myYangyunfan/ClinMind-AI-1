@@ -49,17 +49,17 @@
   addEventListener('keydown', unlockAudio, {once: true});
   const canvas = $('.canvas');
   const workstation = !!$('.computer');
-  const notice = document.createElement('div'); notice.className = 'game-notice'; notice.setAttribute('role', 'status'); document.body.append(notice);
-  const alert = document.createElement('div'); alert.className = 'game-alert'; canvas.append(alert);
-  const log = document.createElement('aside'); log.className = 'game-log'; log.hidden = true;
-  log.innerHTML = '<div class="game-log-head"><b>接诊记录</b><button aria-label="关闭记录">×</button></div><div class="game-log-body"></div>';
+  const notice = document.createElement('div'); notice.className = 'scene-notice'; notice.setAttribute('role', 'status'); document.body.append(notice);
+  const alert = document.createElement('div'); alert.className = 'scene-alert'; canvas.append(alert);
+  const log = document.createElement('aside'); log.className = 'scene-log'; log.hidden = true;
+  log.innerHTML = '<div class="scene-log-head"><b>接诊记录</b><button aria-label="关闭记录">×</button></div><div class="scene-log-body"></div>';
   document.body.append(log); $('button', log).onclick = () => { log.hidden = true; };
-  const dialog = document.createElement('dialog'); dialog.className = 'game-dialog'; document.body.append(dialog);
+  const dialog = document.createElement('dialog'); dialog.className = 'scene-dialog'; document.body.append(dialog);
   dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
   function fit() { canvas.style.transform = `scale(${Math.min(innerWidth / 1600, innerHeight / 900)})`; }
   addEventListener('resize', fit); fit();
   function toast(text, error = false) {
-    notice.textContent = text; notice.classList.toggle('game-error', error);
+    notice.textContent = text; notice.classList.toggle('scene-error', error);
     clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.textContent = ''; }, error ? 7000 : 3500);
   }
   async function api(path, body) {
@@ -84,26 +84,26 @@
   }
   function openDialog(title) {
     dialog.replaceChildren();
-    const head = document.createElement('div'); head.className = 'game-dialog-head';
+    const head = document.createElement('div'); head.className = 'scene-dialog-head';
     const h = document.createElement('h2'); h.textContent = title;
     const close = document.createElement('button'); close.className = 'secondary'; close.textContent = '关闭'; close.onclick = () => dialog.close();
-    head.append(h, close); const body = document.createElement('div'); body.className = 'game-dialog-body'; dialog.append(head, body);
+    head.append(h, close); const body = document.createElement('div'); body.className = 'scene-dialog-body'; dialog.append(head, body);
     if (!dialog.open) dialog.showModal();
     return body;
   }
   function element(tag, text, className) { const el = document.createElement(tag); if (text !== undefined) el.textContent = text; if (className) el.className = className; return el; }
   function showLog() {
-    const body = $('.game-log-body', log); body.replaceChildren();
+    const body = $('.scene-log-body', log); body.replaceChildren();
     const messages = snapshot?.dialogues || [];
     if (!messages.length) body.append(element('p', '尚无操作记录。选择页签或输入指令开始接诊。'));
     messages.slice(-200).forEach(m => {
-      const div = element('div', undefined, `game-message ${m.speaker}`);
+      const div = element('div', undefined, `scene-message ${m.speaker}`);
       div.append(element('b', names[m.speaker] || m.role_title || '系统'), document.createTextNode(m.text)); body.append(div);
     });
     log.hidden = false; body.scrollTop = body.scrollHeight;
   }
   function reportCard(report) {
-    const card = element('article', undefined, 'game-report'); card.append(element('h3', report.title || report.item_name || '检查报告'));
+    const card = element('article', undefined, 'scene-report'); card.append(element('h3', report.title || report.item_name || '检查报告'));
     const details = report.details || {};
     Object.entries(details).forEach(([k,v]) => card.append(element('p', `${k}：${v}`)));
     if (!Object.keys(details).length && report.result) card.append(element('p', `结果：${report.result}`));
@@ -286,13 +286,13 @@
     input.placeholder=`输入${menu[i].label}指令……`;
     if (!workstation && openQuick) {
       const body=openDialog(`${menu[i].label} · 快捷操作`);
-      const choices=element('div',undefined,'game-actions');
+      const choices=element('div',undefined,'scene-actions');
       menu[i].items.forEach(([title,cmd])=>{const b=element('button',title);b.onclick=()=>{dialog.close();execute(cmd);};choices.append(b);});
-      body.append(choices,element('p','也可以关闭此窗口，在底部输入自定义指令。','game-footnote'));
+      body.append(choices,element('p','也可以关闭此窗口，在底部输入自定义指令。','scene-footnote'));
     }
   }
   const inputWrapper = $('.question-entry .text-input') || $('.action-dock .text-input');
-  const input = document.createElement('input'); input.className='game-input'; input.placeholder='输入追问或诊疗指令……'; input.setAttribute('aria-label','问诊或诊疗指令'); input.maxLength=4000;
+  const input = document.createElement('input'); input.className='scene-input'; input.placeholder='输入追问或诊疗指令……'; input.setAttribute('aria-label','问诊或诊疗指令'); input.maxLength=4000;
   inputWrapper.replaceChildren(input); input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)submit();});
   function submit(){if(input.value.trim())execute(input.value.trim());}
   interactive($('.send'),submit,'发送指令');
@@ -345,13 +345,13 @@
   },1000);
   function renderAssessment(data) {
     const body=openDialog('OSCE 临床思维训练报告');
-    const metrics=element('div',undefined,'game-metrics');
+    const metrics=element('div',undefined,'scene-metrics');
     [['训练总分',`${data.total_score} / 100`],['拓扑相似度',`${Math.round(data.topological_similarity*100)}%`],['图编辑距离',data.ged_distance]].forEach(([label,val])=>{const d=element('div');d.append(element('small',label),element('b',val));metrics.append(d);});body.append(metrics);
     const table=document.createElement('table');Object.entries(data.radar_scores).forEach(([key,val])=>{const tr=table.insertRow();tr.insertCell().textContent=({critical_first_aid:'急救处置力',diagnostic_accuracy:'确诊决策度',differential_thinking:'鉴别思维',safety_awareness:'安全意识',physician_patient_comm:'医患沟通',clinical_efficiency:'临床效率'})[key]||key;tr.insertCell().textContent=`${val} / 100`;});body.append(table);
     body.append(element('h3','复盘反馈'));
     [...data.fatal_errors,...data.clinical_feedback].forEach(t=>body.append(element('p',t)));
     const steps=document.createElement('details');steps.append(element('summary',`操作时间线（${data.action_sequence_summary.length} 项）`));data.action_sequence_summary.forEach((a,i)=>steps.append(element('p',`${i+1}. ${a.content}`)));body.append(steps);
-    const actions=element('div',undefined,'game-actions');const download=element('button','导出 JSON 报告');download.onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`ClinMind-${sessionId}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};const next=element('button','开始下一次训练','secondary');next.onclick=()=>startNew();actions.append(download,next);body.append(actions,element('p','此报告由演示病例与规则评分生成，用于临床思维教学模拟。','game-footnote'));
+    const actions=element('div',undefined,'scene-actions');const download=element('button','导出 JSON 报告');download.onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`ClinMind-${sessionId}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};const next=element('button','开始下一次训练','secondary');next.onclick=()=>startNew();actions.append(download,next);body.append(actions,element('p','此报告由演示病例与规则评分生成，用于临床思维教学模拟。','scene-footnote'));
   }
   function evaluation() {
     if(snapshot?.assessment){renderAssessment({...snapshot.assessment,session_id:sessionId});return;}
@@ -372,7 +372,7 @@
     }).catch(e=>list.append(element('p',`病例库读取失败：${e.message}`)));
   }
   function settings() {
-    const body=openDialog('AI 模型配置');body.classList.add('game-settings');
+    const body=openDialog('AI 模型配置');body.classList.add('scene-settings');
     body.append(element('p','默认离线即可完成全部训练。在线模式会将模拟对话发送至所选服务商。'));
     const select=document.createElement('select');[['offline','离线规则引擎（免 Key）'],['deepseek','DeepSeek'],['openai','OpenAI'],['custom','自定义兼容接口']].forEach(([v,t])=>{const o=element('option',t);o.value=v;select.append(o);});body.append(select);
     const key=element('input');key.type='password';key.autocomplete='off';key.placeholder='API Key（仅保存在本机 .env，留空沿用已保存值）';const base=element('input');base.placeholder='接口 Base URL';const model=element('input');model.placeholder='模型名称';body.append(key,base,model);
@@ -380,7 +380,7 @@
     const volumeLabel = element('label','监护音量'); const volume = document.createElement('input'); volume.type='range'; volume.min='0'; volume.max='1'; volume.step='.01'; volume.value=String(window.monitorAudio?.volume ?? .08); volumeLabel.append(volume); body.append(volumeLabel);
     volume.oninput=()=>window.monitorAudio?.setVolume(volume.value);
     const presets={deepseek:['https://api.deepseek.com/v1','deepseek-chat'],openai:['https://api.openai.com/v1','gpt-4o-mini'],offline:['','offline-rule-engine'],custom:['http://127.0.0.1:11434/v1','']};
-    const actions=element('div',undefined,'game-actions'); const test=element('button','测试连接并保存'); const save=element('button','仅保存','secondary'); actions.append(test,save); body.append(actions);
+    const actions=element('div',undefined,'scene-actions'); const test=element('button','测试连接并保存'); const save=element('button','仅保存','secondary'); actions.append(test,save); body.append(actions);
     const status=element('p'); status.className='connection-status'; body.append(status);
     const statusLabel=element('span','连接状态：'); const statusValue=element('strong','尚未测试'); const statusRow=element('div',undefined,'connection-state connection-unknown'); statusRow.append(statusLabel,statusValue); body.insertBefore(statusRow,status);
     function showConnection(ok, message, testedAt='') {
@@ -405,7 +405,7 @@
     api('/api/config/llm').then(current=>{select.value=current.provider || 'offline'; base.value=current.base_url || ''; model.value=current.model || ''; select.onchange(); if(current.provider !== 'offline') { base.value=current.base_url || base.value; model.value=current.model || model.value; } showConnection(current.connection_ok, current.connection_message, current.connection_tested_at); }).catch(()=>showConnection(false,'无法读取当前连接状态，请检查服务是否启动。'));
     select.onchange();
   }
-  const tools=element('div',undefined,'game-tools');
+  const tools=element('div',undefined,'scene-tools');
   [['接诊记录',showLog],['报告',()=>showReports()],['结案报告',evaluation],['AI 配置',settings]].forEach(([text,fn])=>{const b=element('button',text);b.onclick=fn;tools.append(b);});
   ($('.work-header') || $('.hud')).append(tools);
   interactive($('.monitor-label'),()=>{location.href='/static/workstation.html';},'打开工作站');

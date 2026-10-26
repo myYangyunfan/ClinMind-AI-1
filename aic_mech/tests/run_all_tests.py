@@ -170,9 +170,9 @@ def run_all():
     static_runner = unittest.TextTestRunner(verbosity=1)
     static_res = static_runner.run(static_suite)
 
-    print("\n[PHASE 4] Executing tests/test_game_backend.py (New UI & Persistence)...")
-    game_suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_game_backend")
-    game_res = unittest.TextTestRunner(verbosity=1).run(game_suite)
+    print("\n[PHASE 4] Executing tests/test_session_backend.py (Session & Persistence)...")
+    session_suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_session_backend")
+    session_res = unittest.TextTestRunner(verbosity=1).run(session_suite)
 
     print("\n[PHASE 5] Model configuration & v2 startup regressions...")
     v2_suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_v2_regressions")
@@ -187,7 +187,7 @@ def run_all():
     print("\n" + "=" * 70)
     print("  AUTOMATION TEST RESULTS SUMMARY")
     print("=" * 70)
-    suites = [e2e_res, static_res, game_res, v2_res]
+    suites = [e2e_res, static_res, session_res, v2_res]
     total_run = len(te_tests) + sum(r.testsRun for r in suites)
     total_passed = passed_te + sum(r.testsRun - len(r.failures) - len(r.errors) for r in suites)
     total_failed = len(te_tests) - passed_te + int(load_failed) + sum(len(r.failures) + len(r.errors) for r in suites)

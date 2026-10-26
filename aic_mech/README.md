@@ -44,46 +44,61 @@
 ## 📂 项目全景工程结构
 
 ```
-D:/workspace/aic_mech/
+aic_mech/
 ├── app/                             # 系统核心后端服务 (FastAPI)
 │   ├── api/                         # RESTful 接口与 WebSocket 实时广播
 │   │   ├── routes_case.py           # 病例管理与初始化
 │   │   ├── routes_action.py         # 问诊、查体、检查、处方、转归决策接口
 │   │   ├── routes_eval.py           # 结案提交与 OSCE 评分报告
+│   │   ├── routes_config.py         # LLM 模型配置读写与连通性测试
 │   │   └── websocket_feed.py        # 1Hz 遥测体征广播与危急值推送
-│   ├── core/                        # 四大核心算法引擎
+│   ├── core/                        # 核心算法引擎与会话管理
 │   │   ├── physiology_engine.py     # 连续血流动力学状态机 (含 120s 破裂倒计时)
 │   │   ├── guardrail_engine.py      # 双轨制 Graph-RAG 防幻觉物理隔离护栏
 │   │   ├── agent_engine.py          # 多角色认知博弈引擎 (患者/家属/护士)
 │   │   ├── ged_evaluator.py         # 基于 NetworkX 的图编辑距离 (GED) 算法
+│   │   ├── case_repository.py       # 病例目录加载、校验与归一化
 │   │   └── session_manager.py       # 多学员会话状态生命周期管理
-│   ├── data/                        # 确定性知识图谱与金标准底座
+│   ├── data/                        # 确定性知识图谱与病例底座
 │   │   ├── case_chest_pain.json     # Stanford A型主动脉夹层王牌示范病例
-│   │   └── expert_golden_dag.json   # 18节点/22边专家金标准决策拓扑图
+│   │   ├── expert_golden_dag.json   # 18节点/22边专家金标准决策拓扑图
+│   │   └── cases/                   # 通用训练病例 5 例 + index.json 目录
 │   ├── models/                      # 数据实体与 Pydantic 校验模型
 │   │   ├── entities.py              # 生命体征、操作记录、OSCE评估量表实体
 │   │   └── schemas.py               # API 请求与响应结构定义
 │   └── server.py                    # FastAPI 实例装配与静态资源挂载
 │
-├── static/                          # 沉浸式急诊工作台前端 (HTML5/CSS3/Vanilla JS)
-│   ├── index.html                   # 抢救室三栏工作台与 OSCE 全屏复盘大屏
-│   ├── css/custom.css               # 深色专业监护仪 UI、动态危急值警报动画
+├── static/                          # 前端 (HTML5/CSS3/Vanilla JS，无构建步骤)
+│   ├── reception.html               # 接诊室 · 沉浸式医患沟通场景
+│   ├── workstation.html             # 电脑工作站 · 监护/病历/操作/六维雷达
+│   ├── index.html                   # 旧版三栏工作台 (兼容入口，仍可用)
+│   ├── css/
+│   │   ├── scene.css                # 接诊室与工作站共享场景样式 (单一来源)
+│   │   └── custom.css               # 旧版工作台专用样式
 │   └── js/
-│       ├── app.js                   # 状态同步、REST交互与 WebSocket 客户端
-│       ├── ecg_canvas.js            # 60fps HTML5 Canvas 绿色心电图/血氧实时波形
-│       ├── dag_view.js              # 基于 ECharts 的思维拓扑图与六维雷达图
-│       └── audio_alerts.js          # Web Audio API 原生监护仪蜂鸣与危急值警报
+│       ├── scene.js                 # 双页共享交互层：场景、监护、接诊记录、报告、配置
+│       ├── audio_alerts.js          # Web Audio 监护仪蜂鸣与危急值警报 (三页共用)
+│       ├── app.js                   # 旧版工作台状态同步与 WebSocket 客户端
+│       ├── ecg_canvas.js            # 旧版工作台 60fps Canvas 心电/血氧波形
+│       ├── dag_view.js              # 旧版工作台 ECharts 思维拓扑图与六维雷达
+│       └── zoom_adapter.js          # 旧版工作台缩放自适应层
 │
-├── tests/                           # 自动化测试套件 (覆盖率 69.5% / 核心引擎 >90%)
+├── tests/                           # 自动化测试套件 (53 项，语句覆盖率 56.3%)
 │   ├── test_engines.py              # 核心引擎功能自检
 │   ├── test_e2e_edge_cases.py       # 极限边界、熔断致死与并发用例
-│   ├── test_static_assets.py        # 前端资源完整度与一致性校验
+│   ├── test_ai_native_capabilities.py # 多智能体原生能力用例
+│   ├── test_v2_regressions.py       # v2 回归用例
+│   ├── test_session_backend.py      # 会话持久化/隔离/结案冻结与静态资源可达性
+│   ├── test_static_assets.py        # 旧版工作台前端资源与 DOM 一致性校验
+│   ├── browser_smoke.cjs            # Puppeteer 冒烟脚本 (需手动执行)
+│   ├── browser_v2.cjs               # Puppeteer 双页联调脚本 (需手动执行)
 │   └── run_all_tests.py             # 综合测试运行器与代码覆盖率统计
 │
 ├── config.py                        # 全局配置中心 (端口/模型Key/离线开关)
+├── .env.example                     # 环境变量模板 (在线模型 Key 等)
 ├── requirements.txt                 # 项目依赖项清单
 ├── main.py                          # 单命令一键启动入口 (自动挂载前端)
-└── 赛题.txt                         # 计算机设计大赛官方赛题指南
+└── runtime/                         # 运行时会话快照 (本地生成，已 gitignore)
 ```
 
 ---

@@ -11,11 +11,11 @@
 
 ### 接诊室
 
-![ClinMind-AI 接诊室](./01-接诊场景.png)
+![ClinMind-AI 接诊室](./design/ui-concepts/01-接诊场景.png)
 
 ### 电脑工作站
 
-![ClinMind-AI 电脑工作站](./02-电脑工作站.png)
+![ClinMind-AI 电脑工作站](./design/ui-concepts/02-电脑工作站.png)
 
 ## 项目能做什么
 
@@ -121,16 +121,15 @@ LLM_PROVIDER=offline
 ## 系统结构
 
 ```text
-ClinMind-AI-v2/
+ClinMind-AI-1/
 ├── start.cmd                       # Windows 双击启动入口
 ├── start.ps1                       # 自动创建环境并启动服务
-├── 01-接诊场景.png                 # 接诊室预览图
-├── 02-电脑工作站.png               # 工作站预览图
 ├── 使用说明.md                     # 运行说明
 ├── README.md                       # 项目说明
+├── design/ui-concepts/             # 设计交付物：场景原型、渲染图、设计说明与渲染脚本
 └── aic_mech/
     ├── app/                        # FastAPI、病例、引擎和数据模型
-    │   ├── data/cases/             # 5 个通用病例及病例索引
+    │   └── data/cases/             # 5 个通用病例及病例索引
     ├── static/                     # 接诊室、工作站及旧版兼容前端
     ├── tests/                      # 后端、静态资源和浏览器联调测试
     ├── config.py                   # 服务、模型和仿真配置
