@@ -632,7 +632,7 @@
     "A": {
       "code": "A",
       "label": "治愈/稳定",
-      "condition": "!has_red_line && SpO2 >= 95 && RR < 22 && trust >= 0.20",
+      "condition": "!has_red_line && treated && SpO2 >= 92 && RR <= 27",
       "title": "三喷之后讲回整句",
       "narration": "第二喷之后五分钟，肩胛不再耸得那么高。二十分钟复测 PEF 从 260 回到 355 L/min，SpO₂ 稳在 96%，她能一口气说完一整句话了。你做的只是先把气道打开，再告诉她：那间画室里的猫，可能得换个地方住了。",
       "patient_line": "谢谢您……我能讲完整句子了，好久没这么顺畅地呼气。",
@@ -648,7 +648,7 @@
     "B": {
       "code": "B",
       "label": "延误",
-      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(SpO2 >= 95 && RR < 22 && trust >= 0.20)",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(treated && SpO2 >= 92 && RR <= 27)",
       "title": "喘压下去了，炎症还在",
       "narration": "沙丁胺醇让她当场舒服了不少，可你没上激素，也没安排复测。四小时后她又一次喘到只能讲短句，被同学扶着回来。支气管舒张剂打开的是气道，不是炎症——这一课她替你记下了。",
       "patient_line": "医生……我又喘起来了，比刚才还紧。",

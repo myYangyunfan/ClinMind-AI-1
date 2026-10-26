@@ -9,6 +9,7 @@ lines, multiplier snapshots, the 0.005 UI suppression rule and persistence.
 import json
 import sqlite3
 import tempfile
+import time
 import unittest
 from contextlib import closing
 from pathlib import Path
@@ -24,10 +25,19 @@ from app.core.emotion_engine import (
     ANXIETY_TIME_CEILING,
     UI_HINT_MIN_DELTA,
 )
-from app.models.entities import AgentState, PatientStateEnum
+from app.models.entities import ActionType, AgentState, PatientStateEnum
 from app.core.session_manager import SessionStore
+from app.core.agent_engine import AgentEngine
+from app.core.physiology_engine import PhysiologyEngine
 
 CASE_ID = "case_chest_pain_001"
+DATA_DIR = Path(__file__).resolve().parents[1] / "app" / "data"
+
+
+def load_case(relative: str) -> dict:
+    """Load a case JSON from ``app/data`` (UTF-8)."""
+    with open(DATA_DIR / relative, encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 class EmotionTimeTermTests(unittest.TestCase):
@@ -382,6 +392,308 @@ class SessionEmotionIntegrationTests(unittest.TestCase):
         self.assertEqual(restored.emotion.state.patient_anxiety,
                          config.EMOTION_PATIENT_ANXIETY_INIT)
         self.assertFalse(restored.emotion.refused)
+
+
+class EmotionScriptBandTests(unittest.TestCase):
+    """spec/01 §1.2: emotion_scripts 按 patient_trust 三档，缺失时无损回落旧台词."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.chest = load_case("case_chest_pain.json")
+        cls.cold = load_case("cases/case_gam_001_common_cold.json")
+
+    def _engine(self, case=None):
+        engine = AgentEngine(case_data=dict(case or self.chest))
+        engine.sync_emotion({"patient_trust": 0.40, "patient_anxiety": 0.50})
+        return engine
+
+    def test_trust_bands_pick_high_mid_low_scripts(self):
+        engine = self._engine()
+        scripts = self.chest["emotion_scripts"]["E2_PAIN_DETAIL"]
+        for trust, band in ((0.80, "high"), (0.50, "mid"), (0.20, "low")):
+            with self.subTest(trust=trust):
+                engine.sync_emotion({"patient_trust": trust})
+                self.assertEqual(engine.resolve_emotion_band(trust), band)
+                self.assertEqual(engine.emotion_script("E2_PAIN_DETAIL"), scripts[band])
+
+    def test_band_boundaries_use_inclusive_ge(self):
+        self.assertEqual(AgentEngine.resolve_emotion_band(0.70), "high")
+        self.assertEqual(AgentEngine.resolve_emotion_band(0.6999999), "mid")
+        self.assertEqual(AgentEngine.resolve_emotion_band(0.30), "mid")
+        self.assertEqual(AgentEngine.resolve_emotion_band(0.29999), "low")
+
+    def test_inquiry_returns_banded_patient_line(self):
+        engine = self._engine()
+        engine.sync_emotion({"patient_trust": 0.20})
+        messages = engine.handle_inquiry("您胸口是怎么个疼法？")
+        self.assertEqual(messages[-1].text, self.chest["emotion_scripts"]["E2_PAIN_DETAIL"]["low"])
+
+        engine.sync_emotion({"patient_trust": 0.85})
+        messages = engine.handle_inquiry("您胸口是怎么个疼法？")
+        self.assertEqual(messages[-1].text, self.chest["emotion_scripts"]["E2_PAIN_DETAIL"]["high"])
+
+    def test_comfort_uses_consent_node(self):
+        engine = self._engine()
+        engine.sync_emotion({"patient_trust": 0.80})
+        messages = engine.handle_inquiry("大爷您别紧张，我们全力救治")
+        self.assertEqual(messages[1].text, self.chest["emotion_scripts"]["E6_PRE_OUTCOME"]["high"])
+
+    def test_free_chat_falls_back_to_consult_node(self):
+        engine = self._engine()
+        engine.sync_emotion({"patient_trust": 0.50})
+        messages = engine.handle_inquiry("今天天气不错啊")
+        self.assertEqual(messages[-1].text, self.chest["emotion_scripts"]["E1_CONSULT"]["mid"])
+
+    def test_case_without_emotion_scripts_keeps_legacy_lines(self):
+        legacy = AgentEngine(case_data={"case_id": CASE_ID})
+        self.assertFalse(legacy.has_emotion_scripts())
+        messages = legacy.handle_inquiry("您胸口是怎么个疼法？")
+        self.assertIn("刀劈开撕裂", messages[-1].text)
+
+        bare = AgentEngine()
+        self.assertIsNone(bare.emotion_script("E2_PAIN_DETAIL"))
+        self.assertEqual(bare.patient_emotion_line("E2_PAIN_DETAIL", "旧台词"), "旧台词")
+
+    def test_malformed_emotion_scripts_fall_back(self):
+        engine = AgentEngine(case_data={"case_id": CASE_ID, "emotion_scripts": {"E2_PAIN_DETAIL": {"high": "  "}}})
+        self.assertFalse(engine.has_emotion_scripts())
+        self.assertIsNone(engine.emotion_script("E2_PAIN_DETAIL", trust=0.9))
+        engine.case_data["emotion_scripts"] = "not-a-mapping"
+        self.assertIsNone(engine.emotion_script("E2_PAIN_DETAIL", trust=0.9))
+
+    def test_catalogue_case_consumes_emotion_scripts(self):
+        engine = AgentEngine(case_data=dict(self.cold))
+        engine.state.patient_trust = 0.80
+        messages = engine.handle_inquiry("大夫，别紧张，我们会帮您")
+        self.assertEqual(messages[-1].text, self.cold["emotion_scripts"]["E6_PRE_OUTCOME"]["high"])
+
+
+class PrescriptionRuleTests(unittest.TestCase):
+    """spec/01 §1.5: prescription_rules[].severity 驱动 LETHAL / HARMFUL 分支."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.asthma = load_case("cases/case_gam_003_asthma.json")
+        cls.cold = load_case("cases/case_gam_001_common_cold.json")
+        cls.chest = load_case("case_chest_pain.json")
+
+    def test_lethal_rule_reaches_cardiac_arrest_within_30_seconds(self):
+        engine = PhysiologyEngine(case_data=dict(self.asthma))
+        self.assertFalse(engine.high_risk_aortic)
+        result = engine.apply_medication("阿司匹林肠溶片 300mg", 300, "mg")
+        self.assertTrue(result["is_lethal"])
+        self.assertTrue(result["is_red_line"])
+        self.assertEqual(result["severity"], "LETHAL")
+        self.assertEqual(result["rule_id"], "RX_RED_LINE_NSAID")
+        self.assertNotEqual(result["new_state"], PatientStateEnum.S6_CARDIAC_ARREST)
+
+        for _ in range(30):
+            engine.advance_time(1.0)
+        self.assertEqual(engine.get_state(), PatientStateEnum.S6_CARDIAC_ARREST)
+        self.assertTrue(engine.fatal_death_occurred)
+        self.assertEqual(engine.get_vitals().hr, 0.0)
+
+    def test_harmful_rule_deteriorates_without_killing(self):
+        engine = PhysiologyEngine(case_data=dict(self.cold))
+        result = engine.apply_medication("阿司匹林", 100, "mg")
+        self.assertTrue(result["is_harmful"])
+        self.assertFalse(result["is_lethal"])
+        self.assertEqual(result["severity"], "HARMFUL")
+        self.assertFalse(result["harmful_escalated"])
+        for _ in range(60):
+            engine.advance_time(1.0)
+        self.assertNotEqual(engine.get_state(), PatientStateEnum.S6_CARDIAC_ARREST)
+        self.assertFalse(engine.fatal_death_occurred)
+
+    def test_harmful_rules_escalate_on_second_hit(self):
+        engine = PhysiologyEngine(case_data=dict(self.cold))
+        engine.apply_medication("阿司匹林", 100, "mg")
+        second = engine.apply_medication("阿司匹林", 100, "mg")
+        self.assertTrue(second["harmful_escalated"])
+        self.assertEqual(second["harmful_hits"], 2)
+        self.assertIsNotNone(engine.get_rupture_countdown())
+
+    def test_red_line_rule_beats_keyword_fuzzy_match(self):
+        # 病例 1 的硝普钠单用是 RED_LINE + HARMFUL：必须在关键词表之前被认出来
+        engine = PhysiologyEngine(case_data=dict(self.chest))
+        result = engine.apply_medication("硝普钠", 0.5, "ug/kg/min")
+        self.assertEqual(result["rule_id"], "RX_REDLINE_VASODILATOR_ALONE")
+        self.assertTrue(result["is_harmful"])
+        self.assertFalse(result["is_lethal"])
+        self.assertIn("反射性心动过速", result["message"])
+        self.assertFalse(engine.vasodilator_active)
+
+    def test_prerequisite_disables_vasodilator_red_line(self):
+        engine = PhysiologyEngine(case_data=dict(self.chest))
+        engine.apply_medication("艾司洛尔注射液", 0.5, "mg/kg")
+        self.assertTrue(engine.beta_blocker_active)
+        result = engine.apply_medication("硝普钠注射液", 0.5, "ug/kg/min")
+        self.assertFalse(result["is_lethal"])
+        self.assertFalse(result["is_harmful"])
+        self.assertTrue(engine.vasodilator_active)
+        self.assertEqual(engine.get_state(), PatientStateEnum.S2_PHARMACO_CONTROLLED)
+
+    def test_malformed_prescription_rules_are_ignored(self):
+        engine = PhysiologyEngine(case_data={"case_id": "x", "prescription_rules": ["bad", {"verdict": "RED_LINE"}]})
+        self.assertEqual(engine.prescription_rules, [])
+        self.assertIsNone(engine.match_prescription_rule("阿司匹林"))
+
+
+class HemodynamicRuleSwitchTests(unittest.TestCase):
+    """D-30 / D-33: 病例行为开关来自 hemodynamic_rules，时钟常量来自 config."""
+
+    def test_catalogue_case_does_not_inherit_dissection_behaviour(self):
+        engine = PhysiologyEngine(case_data=load_case("cases/case_gam_001_common_cold.json"))
+        self.assertFalse(engine.high_risk_aortic)
+        for _ in range(400):
+            engine.advance_time(1.0)
+        self.assertEqual(engine.get_state(), PatientStateEnum.S0_STABLE)
+        self.assertIsNone(engine.get_rupture_countdown())
+        self.assertFalse(engine.fatal_death_occurred)
+
+    def test_dissection_case_reads_countdown_from_case_json(self):
+        engine = PhysiologyEngine(case_data=load_case("case_chest_pain.json"))
+        self.assertTrue(engine.high_risk_aortic)
+        self.assertEqual(engine.rupture_to_effusion_seconds, 120.0)
+        self.assertEqual(engine.crisis_timeout_seconds, 300.0)
+
+    def test_non_chest_case_with_explicit_rules_gets_dissection_clock(self):
+        engine = PhysiologyEngine(case_data={
+            "case_id": "case_gam_001_common_cold",
+            "hemodynamic_rules": {"lethal_rupture_countdown_seconds": 45},
+        })
+        self.assertTrue(engine.high_risk_aortic)
+        engine.apply_medication("阿司匹林", 100, "mg")
+        self.assertEqual(engine.get_rupture_countdown(), 45)
+
+    def test_missing_case_data_keeps_legacy_behaviour(self):
+        engine = PhysiologyEngine()
+        self.assertTrue(engine.high_risk_aortic)
+        self.assertEqual(engine.rupture_to_effusion_seconds, config.PHYS_RUPTURE_TO_EFFUSION_S)
+
+    def test_lethal_countdown_uses_config_not_and_expression(self):
+        self.assertEqual(config.PHYS_RUPTURE_TO_EFFUSION_S, 120.0)
+        self.assertEqual(config.PHYS_TAMPONADE_STAGE_S, 30.0)
+        self.assertEqual(config.PHYS_RUPTURE_TO_ARREST_S, 15.0)
+        engine = PhysiologyEngine()
+        engine.apply_medication("阿司匹林肠溶片 300mg", 300, "mg")
+        self.assertEqual(engine.get_rupture_countdown(), int(config.PHYS_RUPTURE_TO_EFFUSION_S))
+        for _ in range(166):
+            engine.advance_time(1.0)
+        self.assertEqual(engine.get_state(), PatientStateEnum.S6_CARDIAC_ARREST)
+
+
+class _FakeLLMResponse:
+    """Minimal stand-in for ``httpx.Response`` used by the online branches."""
+
+    def __init__(self, content: str, status_code: int = 200):
+        self.status_code = status_code
+        self.text = content
+
+    def json(self):
+        return {"choices": [{"message": {"content": self.text}}]}
+
+
+class LlmDialoguePathTests(unittest.TestCase):
+    """Offline-safe coverage of AgentEngine's optional online branches."""
+
+    def setUp(self):
+        self.engine = AgentEngine()
+
+    def _call_multi(self, content, *, provider="deepseek", key="sk-test", status=200):
+        with patch.object(config, "is_online_llm_active", return_value=True), \
+                patch.object(config, "LLM_PROVIDER", provider), \
+                patch.object(config, "DEEPSEEK_API_KEY", key), \
+                patch.object(config, "OPENAI_API_KEY", key), \
+                patch("httpx.Client.post", return_value=_FakeLLMResponse(content, status)):
+            return self.engine._generate_multi_agent_llm_response("哪里疼？")
+
+    def test_json_reply_parses_patient_and_family(self):
+        payload = json.dumps({
+            "patient": "呃啊……胸口像被刀劈开。",
+            "patient_emotion": "relieved",
+            "family": "他在工地搬水泥时突然就疼起来了！",
+            "family_emotion": "determined",
+        }, ensure_ascii=False)
+        trust_before = self.engine.state.patient_trust
+        messages = self._call_multi(payload)
+        self.assertEqual([m.speaker for m in messages], ["patient", "family"])
+        self.assertGreater(self.engine.state.patient_trust, trust_before)
+
+    def test_fenced_json_is_unwrapped(self):
+        payload = "```json\n" + json.dumps({"patient": "疼……", "family": ""}, ensure_ascii=False) + "\n```"
+        messages = self._call_multi(payload)
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].speaker, "patient")
+
+    def test_plain_fence_is_unwrapped(self):
+        payload = "```\n" + json.dumps({"patient": "疼……", "family": ""}, ensure_ascii=False) + "\n```"
+        self.assertIsNotNone(self._call_multi(payload))
+
+    def test_raw_text_falls_back_to_patient_bubble(self):
+        messages = self._call_multi("（疼得说不出话）")
+        self.assertEqual(len(messages), 1)
+        self.assertIn("来自在线大模型协同", messages[0].text)
+
+    def test_http_error_returns_none(self):
+        self.assertIsNone(self._call_multi("boom", status=500))
+
+    def test_openai_and_custom_providers(self):
+        payload = json.dumps({"patient": "疼……", "family": ""}, ensure_ascii=False)
+        self.assertIsNotNone(self._call_multi(payload, provider="openai"))
+        self.assertIsNotNone(self._call_multi(payload, provider="custom", key=""))
+
+    def test_missing_api_key_returns_none(self):
+        self.assertIsNone(self._call_multi("x", key=""))
+
+    def test_single_voice_llm_returns_text(self):
+        with patch.object(config, "is_online_llm_active", return_value=True), \
+                patch.object(config, "LLM_PROVIDER", "deepseek"), \
+                patch.object(config, "DEEPSEEK_API_KEY", "sk-test"), \
+                patch("httpx.Client.post", return_value=_FakeLLMResponse("呃啊……大夫……")):
+            self.assertEqual(self.engine._generate_llm_response("疼吗"), "呃啊……大夫……")
+        with patch.object(config, "LLM_PROVIDER", "deepseek"), \
+                patch.object(config, "DEEPSEEK_API_KEY", "sk-test"), \
+                patch("httpx.Client.post", return_value=_FakeLLMResponse("down", 503)):
+            self.assertIsNone(self.engine._generate_llm_response("疼吗"))
+
+    def test_online_branch_short_circuits_offline_templates(self):
+        payload = json.dumps({"patient": "在线患者台词", "family": ""}, ensure_ascii=False)
+        with patch.object(config, "is_online_llm_active", return_value=True), \
+                patch.object(config, "LLM_PROVIDER", "deepseek"), \
+                patch.object(config, "DEEPSEEK_API_KEY", "sk-test"), \
+                patch("httpx.Client.post", return_value=_FakeLLMResponse(payload)):
+            messages = self.engine.handle_inquiry("您哪里疼？")
+        self.assertIn("在线患者台词", messages[-1].text)
+
+    def test_spontaneous_family_interruption(self):
+        self.engine.last_interaction_time = time.time() - 60
+        messages = self.engine.check_spontaneous_events(60.0, PatientStateEnum.S0_STABLE)
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(self.engine.state.family_interrupted_count, 1)
+
+        # 第二次静默仍可触发，第三次达到上限后静默
+        self.engine.last_interaction_time = time.time() - 60
+        self.assertEqual(len(self.engine.check_spontaneous_events(60.0, PatientStateEnum.S0_STABLE)), 1)
+        self.engine.last_interaction_time = time.time() - 60
+        self.assertEqual(self.engine.check_spontaneous_events(60.0, PatientStateEnum.S0_STABLE), [])
+
+    def test_spontaneous_interruption_uses_llm_when_online(self):
+        self.engine.last_interaction_time = time.time() - 60
+        with patch.object(config, "is_online_llm_active", return_value=True), \
+                patch.object(config, "LLM_PROVIDER", "deepseek"), \
+                patch.object(config, "DEEPSEEK_API_KEY", "sk-test"), \
+                patch("httpx.Client.post", return_value=_FakeLLMResponse("医生！快点啊！")):
+            messages = self.engine.check_spontaneous_events(60.0, PatientStateEnum.S0_STABLE)
+        self.assertIn("在线大模型", messages[0].text)
+
+    def test_nurse_generators_and_red_line_order_warning(self):
+        order = self.engine.handle_nurse_order(ActionType.MEDICATION, "给患者嚼服阿司匹林300mg")
+        self.assertIsNotNone(order["warning"])
+        self.assertTrue(self.engine.state.active_critical_alarms)
+        self.assertIn("护士执行", self.engine.notify_order_dispatched("吸氧").text)
+        self.assertIn("心包填塞", self.engine.generate_tamponade_alert(60.0).text)
+        self.assertIn("警觉拦截", self.engine.generate_nurse_warning("阿司匹林").text)
 
 
 if __name__ == "__main__":

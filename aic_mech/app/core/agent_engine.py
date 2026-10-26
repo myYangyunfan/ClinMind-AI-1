@@ -9,10 +9,25 @@ Features:
 
 import time
 import random
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Mapping, Tuple
 import httpx
 from app.models.entities import AgentState, DialogueMessage, ActionType, PatientStateEnum
 import config
+
+
+# spec/01 §1.2: emotion_scripts 按 patient_trust 分三档（high / mid / low）
+FLOAT_EPS = 1e-9
+EMOTION_BAND_HIGH = float(getattr(config, "EMOTION_SCRIPT_TRUST_HIGH", 0.70))
+EMOTION_BAND_MID = float(getattr(config, "EMOTION_SCRIPT_TRUST_MID", 0.30))
+EMOTION_BANDS = ("high", "mid", "low")
+
+# 情绪文案节点（病例 JSON 的 emotion_scripts 键，6 个关键节点）
+EMOTION_NODE_CONSULT = "E1_CONSULT"
+EMOTION_NODE_PAIN = "E2_PAIN_DETAIL"
+EMOTION_NODE_PHYSICAL = "E3_PHYSICAL"
+EMOTION_NODE_WAIT_LAB = "E4_WAIT_LAB"
+EMOTION_NODE_RX = "E5_RX"
+EMOTION_NODE_CONSENT = "E6_PRE_OUTCOME"
 
 
 class AgentEngine:
@@ -31,6 +46,142 @@ class AgentEngine:
         self.dialogue_history: List[DialogueMessage] = []
         self.history_actions_count: int = 0
         self.last_interaction_time: float = time.time()
+        # 可注入的 EmotionEngine.snapshot()（信任度权威来源）；未注入时退回 AgentState
+        self.emotion_snapshot: Optional[Dict[str, Any]] = None
+
+    # ------------------------------------------------------------------
+    # LLM 人设（D-32）：全部取病例 JSON，缺失时回落夹层原文，保证旧行为不变
+    # ------------------------------------------------------------------
+    def _persona_field(self, key: str, default: str = "") -> str:
+        profile = self.case_data.get("patient_profile") or {}
+        value = profile.get(key)
+        return str(value).strip() if value not in (None, "") else default
+
+    def _family_relation(self) -> str:
+        companion = self._persona_field("family_companion")
+        if companion:
+            relation = companion.split("（")[0].split("(")[0].strip()
+            if relation:
+                return relation
+        return "妻子"
+
+    def _persona_scene(self) -> str:
+        """【场景设定】整句：患者基本信息 + 主诉 + 家属陪同。"""
+        name = self._persona_field("name")
+        if not name:
+            return (
+                "急诊抢救室，重症患者孙建国（男，52岁，建筑工人），"
+                "突发极剧烈胸背部撕裂样、刀劈样剧痛3小时，大汗淋漓、面色惨白、极度濒死感；"
+                "旁边是极度焦虑惶恐的家属妻子李秀梅（49岁）。"
+            )
+        gender = self._persona_field("gender")
+        age = self._persona_field("age")
+        occupation = self._persona_field("occupation")
+        chief = str(self.case_data.get("chief_complaint") or "").strip()
+        who = f"{name}（{gender}，{age}岁，{occupation}）" if occupation else f"{name}（{gender}，{age}岁）"
+        tail = "；旁边是极度焦虑惶恐的家属" + self._family_relation() + "。" if self._persona_field("family_companion") else "。"
+        return f"急诊抢救室，重症患者{who}" + (f"，{chief}" if chief else "") + tail
+
+    def _persona_history(self) -> str:
+        """【隐秘病史设定】整段：既往史 + 用药史 + 过敏史。"""
+        parts = [
+            self._persona_field("past_history"),
+            "；".join(str(x) for x in (self.case_data.get("patient_profile") or {}).get("medication_history") or [] if str(x).strip()),
+            self._persona_field("allergy_history"),
+        ]
+        body = "".join(p if p.endswith(("。", "；")) else p + "。" for p in parts if p)
+        if body:
+            return body
+        return (
+            "孙建国有10年原发高血压史，最高曾达200/115mmHg。"
+            "两周前嫌麻烦擅自停降压药，今天下午在工地搬运重水泥猛用力时突发剧痛。"
+        )
+
+    # ------------------------------------------------------------------
+    # 人设（D-32 / K5）：从病例 patient_profile 生成，裸构造时回落旧文案
+    # ------------------------------------------------------------------
+    def _patient_role_title(self) -> str:
+        """患者气泡的抬头，取病例的患者姓名/性别/年龄。"""
+        profile = self.case_data.get("patient_profile") or {}
+        name = str(profile.get("name") or "").strip()
+        age = profile.get("age")
+        gender = str(profile.get("gender") or "").strip()
+        if name:
+            if age and gender:
+                return f"患者 {name} ({gender}，{age}岁)"
+            return f"患者 {name} ({age}岁)" if age else f"患者 {name}"
+        return "患者 孙建国 (52岁)"
+
+    def _family_role_title(self) -> str:
+        """家属气泡的抬头，取病例的陪同关系（family_companion 括号前的关系词）。"""
+        profile = self.case_data.get("patient_profile") or {}
+        companion = str(profile.get("family_companion") or "").strip()
+        if companion:
+            relation = companion.split("（")[0].split("(")[0].strip()
+            if relation:
+                return f"家属（{relation}）"
+        return "家属（妻子李秀梅）"
+
+
+    # ------------------------------------------------------------------
+    # 情绪文案分档（spec/01 §1.2；spec/02 §3 阈值）
+    # ------------------------------------------------------------------
+    def sync_emotion(self, snapshot: Optional[Mapping[str, Any]]) -> None:
+        """Adopt an ``EmotionEngine.snapshot()`` dict, or clear it with ``None``."""
+        self.emotion_snapshot = dict(snapshot) if isinstance(snapshot, Mapping) else None
+
+    def current_trust(self) -> float:
+        """Authoritative patient trust: injected emotion snapshot, else AgentState."""
+        if self.emotion_snapshot:
+            try:
+                return float(self.emotion_snapshot.get("patient_trust"))
+            except (TypeError, ValueError):
+                pass
+        return float(self.state.patient_trust)
+
+    @staticmethod
+    def resolve_emotion_band(trust: Optional[float] = None) -> str:
+        """Map a trust value to ``high`` / ``mid`` / ``low`` (inclusive bounds)."""
+        value = 0.0 if trust is None else float(trust)
+        if value >= EMOTION_BAND_HIGH - FLOAT_EPS:
+            return "high"
+        if value >= EMOTION_BAND_MID - FLOAT_EPS:
+            return "mid"
+        return "low"
+
+    def emotion_scripts(self) -> Dict[str, Any]:
+        """Return the case's ``emotion_scripts`` mapping, or ``{}`` when unusable."""
+        scripts = self.case_data.get("emotion_scripts")
+        return scripts if isinstance(scripts, dict) else {}
+
+    def has_emotion_scripts(self) -> bool:
+        """Whether this case supplies at least one usable banded script."""
+        for entry in self.emotion_scripts().values():
+            if isinstance(entry, str) and entry.strip():
+                return True
+            if isinstance(entry, dict):
+                if any(isinstance(v, str) and v.strip() for v in entry.values()):
+                    return True
+        return False
+
+    def emotion_script(self, node: str, trust: Optional[float] = None) -> Optional[str]:
+        """Banded patient line for ``node``; ``None`` when absent or malformed."""
+        entry = self.emotion_scripts().get(node)
+        band = self.resolve_emotion_band(self.current_trust() if trust is None else trust)
+        if isinstance(entry, str):
+            text = entry
+        elif isinstance(entry, dict):
+            text = entry.get(band)
+        else:
+            return None
+        if not isinstance(text, str):
+            return None
+        text = text.strip()
+        return text or None
+
+    def patient_emotion_line(self, node: str, fallback: str) -> str:
+        """Banded line when available, otherwise the legacy hard-coded line."""
+        return self.emotion_script(node) or fallback
 
     def handle_inquiry(self, query: str, current_state: PatientStateEnum = PatientStateEnum.S0_STABLE) -> List[DialogueMessage]:
         """Process clinician inquiry directed towards patient or family."""
@@ -58,14 +209,14 @@ class AgentEngine:
                 speaker="patient",
                 text="（双眼紧闭，意识丧失，对呼唤与摇晃无任何反应，口唇严重发绀）",
                 timestamp=now + 0.5,
-                role_title="患者 孙建国 (52岁)",
+                role_title=self._patient_role_title(),
                 emotion="unconscious"
             ))
             messages.append(DialogueMessage(
                 speaker="family",
                 text="老孙！老孙你怎么了？！医生求求你快救救他啊！怎么不说话了啊老孙！",
                 timestamp=now + 1.0,
-                role_title="家属（妻子李秀梅）",
+                role_title=self._family_role_title(),
                 emotion="terrified"
             ))
             return messages
@@ -94,16 +245,19 @@ class AgentEngine:
             self.state.family_anxiety = max(0.2, self.state.family_anxiety - 0.15)
             messages.append(DialogueMessage(
                 speaker="patient",
-                text="好……大夫，有您这句话我就放心点了……但我胸口真的快被撕开了，求您快救救我……",
+                text=self.patient_emotion_line(
+                    EMOTION_NODE_CONSENT,
+                    "好……大夫，有您这句话我就放心点了……但我胸口真的快被撕开了，求您快救救我……",
+                ),
                 timestamp=now + 0.8,
-                role_title="患者 孙建国 (52岁)",
+                role_title=self._patient_role_title(),
                 emotion="relieved"
             ))
             messages.append(DialogueMessage(
                 speaker="family",
                 text="大夫，我们全家都听您的，只要能让我爱人止住疼，您怎么治都行！",
                 timestamp=now + 1.2,
-                role_title="家属（妻子李秀梅）",
+                role_title=self._family_role_title(),
                 emotion="appreciative"
             ))
             return messages
@@ -112,9 +266,12 @@ class AgentEngine:
         if any(k in q for k in ["撕裂", "刀割", "后背", "性质", "怎么疼", "疼痛", "哪里疼", "胸口"]):
             messages.append(DialogueMessage(
                 speaker="patient",
-                text="大夫！我胸骨后面像被生生用刀劈开撕裂了一样！而且剧痛一下子窜到了后背两块肩胛骨中间！疼得我浑身冷汗直冒，喘不上气！",
+                text=self.patient_emotion_line(
+                    EMOTION_NODE_PAIN,
+                    "大夫！我胸骨后面像被生生用刀劈开撕裂了一样！而且剧痛一下子窜到了后背两块肩胛骨中间！疼得我浑身冷汗直冒，喘不上气！",
+                ),
                 timestamp=now + 0.8,
-                role_title="患者 孙建国 (52岁)",
+                role_title=self._patient_role_title(),
                 emotion="agony"
             ))
             return messages
@@ -125,7 +282,7 @@ class AgentEngine:
                 speaker="patient",
                 text="今天下午在工地上……我帮工友们搬了一大包重水泥，刚一使劲猛抬，胸口突然就像‘啪’的一声撕裂炸开了！持续疼了整整3个多小时了！",
                 timestamp=now + 0.8,
-                role_title="患者 孙建国 (52岁)",
+                role_title=self._patient_role_title(),
                 emotion="groaning"
             ))
             return messages
@@ -138,14 +295,14 @@ class AgentEngine:
                     speaker="patient",
                     text="我……我有高血压十年了，最高量过 200/115！平时嫌吃药麻烦经常漏服……最近赶工期这两周擅自停药了……",
                     timestamp=now + 0.8,
-                    role_title="患者 孙建国 (52岁)",
+                    role_title=self._patient_role_title(),
                     emotion="regretful"
                 ))
                 messages.append(DialogueMessage(
                     speaker="family",
                     text="大夫！他根本不听劝！天天熬夜加班，擅自把降压药全停了，我怎么骂他都不吃！",
                     timestamp=now + 1.3,
-                    role_title="家属（妻子李秀梅）",
+                    role_title=self._family_role_title(),
                     emotion="anxious"
                 ))
             else:
@@ -153,7 +310,7 @@ class AgentEngine:
                     speaker="family",
                     text="大夫，他有高血压好多年了，经常不好好服药！大夫您快救救他，别光问这个了！",
                     timestamp=now + 0.8,
-                    role_title="家属（妻子李秀梅）",
+                    role_title=self._family_role_title(),
                     emotion="distressed"
                 ))
             return messages
@@ -168,7 +325,7 @@ class AgentEngine:
                 speaker="family",
                 text="（流着眼泪颤抖拿笔）大夫……我们全家都听您的！我们全力配合！字我们马上签，求医院心胸外科马上安排急诊手术！",
                 timestamp=now + 1.0,
-                role_title="家属（妻子李秀梅）",
+                role_title=self._family_role_title(),
                 emotion="determined"
             ))
             return messages
@@ -181,12 +338,12 @@ class AgentEngine:
             "大夫……我平时血压确实很高，这次是不是心脏或者大血管破了啊……我还撑得住吗大夫……"
         ]
         import random
-        chosen_text = random.choice(fallbacks)
+        chosen_text = self.emotion_script(EMOTION_NODE_CONSULT) or random.choice(fallbacks)
         messages.append(DialogueMessage(
             speaker="patient",
             text=chosen_text,
             timestamp=now + 0.8,
-            role_title="患者 孙建国 (52岁)",
+            role_title=self._patient_role_title(),
             emotion="pleading"
         ))
         return messages
@@ -198,7 +355,7 @@ class AgentEngine:
         name = profile.get("name", "虚拟患者")
         age = profile.get("age", "")
         gender = profile.get("gender", "")
-        title = f"患者 {name} ({gender}{age}岁)" if age else f"患者 {name}"
+        title = self._patient_role_title()
         layers = (data.get("game_extensions") or {}).get("dialogue_layers") or {}
         scripts = data.get("dialogue_scripts") or {}
 
@@ -206,7 +363,7 @@ class AgentEngine:
         if empathy:
             self.state.patient_trust = min(1.0, self.state.patient_trust + 0.12)
             self.state.family_anxiety = max(0.2, self.state.family_anxiety - 0.10)
-            text = scripts.get("trust_high") or "谢谢医生解释，我心里踏实多了。"
+            text = self.emotion_script(EMOTION_NODE_CONSENT) or scripts.get("trust_high") or "谢谢医生解释，我心里踏实多了。"
             messages.append(DialogueMessage(speaker="patient", text=text, timestamp=now + 0.8, role_title=title, emotion="relieved"))
             return messages
 
@@ -228,7 +385,10 @@ class AgentEngine:
         options = inquiry.get(selected, []) if selected else []
         if isinstance(options, str):
             options = [options]
-        text = random.choice(options) if options else data.get("chief_complaint", "我现在有些不舒服，请医生帮我看看。")
+        text = random.choice(options) if options else (
+            self.emotion_script(EMOTION_NODE_CONSULT)
+            or data.get("chief_complaint", "我现在有些不舒服，请医生帮我看看。")
+        )
         self.state.patient_trust = min(1.0, self.state.patient_trust + 0.03)
         messages.append(DialogueMessage(speaker="patient", text=text, timestamp=now + 0.8, role_title=title, emotion="anxious" if self.state.patient_trust < 0.55 else "cooperative"))
 
@@ -331,7 +491,7 @@ class AgentEngine:
             family_text = "医生！怎么停下了？！我爱人脸色煞白一身虚汗，你们还要商量多久？！电视上说胸痛要嚼阿司匹林，到底给不给他吃啊？！"
             # 若在线大模型已激活，可动态生成家属突发催促
             if config.is_online_llm_active():
-                dynamic_prompt = "请扮演急诊抢救室极度焦急的妻子李秀梅，看到抢救暂停了40秒，说一句催促医生救救丈夫的简短话（不超过40字，口语、急切恐慌）。"
+                dynamic_prompt = f"请扮演急诊抢救室极度焦急的{self._family_relation()}，看到抢救暂停了40秒，说一句催促医生救救患者的简短话（不超过40字，口语、急切恐慌）。"
                 dynamic_text = self._generate_llm_response(dynamic_prompt)
                 if dynamic_text:
                     family_text = f"{dynamic_text.strip()}\n\n[🟢 来自在线大模型情境推演: {config.LLM_MODEL}]"
@@ -340,7 +500,7 @@ class AgentEngine:
                 speaker="family",
                 text=family_text,
                 timestamp=now,
-                role_title="家属（妻子李秀梅 - 焦虑催促）",
+                role_title=f"{self._family_role_title()} - 焦虑催促",
                 emotion="anxious"
             ))
 
@@ -377,13 +537,12 @@ class AgentEngine:
 
         system_prompt = (
             "你正在参与国家级医工交叉与临床思维虚拟仿真模拟，负责在急诊抢救室协同推演多角色交互。\n"
-            "【场景设定】：急诊抢救室，重症患者孙建国（男，52岁，建筑工人），突发极剧烈胸背部撕裂样、刀劈样剧痛3小时，大汗淋漓、面色惨白、极度濒死感；"
-            "旁边是极度焦虑惶恐的家属妻子李秀梅（49岁）。\n"
-            "【隐秘病史设定】：孙建国有10年原发高血压史，最高曾达200/115mmHg。两周前嫌麻烦擅自停降压药，今天下午在工地搬运重水泥猛用力时突发剧痛。\n"
+            f"【场景设定】：{self._persona_scene()}\n"
+            f"【隐秘病史设定】：{self._persona_history()}\n"
             "【多角色协同生成规则】：\n"
             "1. 绝不允许输出套话与机械模板。必须根据医生的发言内容进行自然、真实的人性化回应。\n"
             "2. 如果医生询问身体感受（如痛感性质、部位、放射方向、发病时间）：以【患者】为主回答（口语化、痛苦呻吟断续、喘息），【家属】在旁焦急补充生活细节。\n"
-            "3. 如果医生询问既往史/诱因/吃药情况，或明确对家属讲话：以【家属李秀梅】为主回答（焦急、懊悔自责丈夫停药），【患者】在旁呻吟忍痛。\n"
+            f"3. 如果医生询问既往史/诱因/吃药情况，或明确对家属讲话：以【家属{self._family_relation()}】为主回答（焦急、懊悔自责患者停药），【患者】在旁呻吟忍痛。\n"
             "4. 如果医生进行心理安慰、交代病情、知情同意或要求签字手术：【家属】情绪转为高度配合与信任感激（表态全家全力配合签字），【患者】表示放心与感激。\n"
             "5. 严禁患者或家属说出'主动脉夹层'等专业医学诊断名词！他们只是普通工人群体。\n"
             "【严格JSON返回格式】：\n"
@@ -440,7 +599,7 @@ class AgentEngine:
                                     speaker="patient",
                                     text=f"{p_text}\n\n[🟢 来自在线大模型多角色协同: {model}]",
                                     timestamp=now + 0.6,
-                                    role_title="患者 孙建国 (52岁)",
+                                    role_title=self._patient_role_title(),
                                     emotion=p_emo
                                 ))
                             if f_text:
@@ -448,7 +607,7 @@ class AgentEngine:
                                     speaker="family",
                                     text=f"{f_text}",
                                     timestamp=now + 1.2,
-                                    role_title="家属（妻子李秀梅）",
+                                    role_title=self._family_role_title(),
                                     emotion=f_emo
                                 ))
                             
@@ -465,14 +624,14 @@ class AgentEngine:
                                 speaker="patient",
                                 text=f"{raw_content}\n\n[🟢 来自在线大模型协同: {model}]",
                                 timestamp=now + 0.6,
-                                role_title="患者 孙建国 (52岁)",
+                                role_title=self._patient_role_title(),
                                 emotion="groaning"
                             ))
                             return messages
                 else:
-                    print(f"⚠️ [AgentEngine LLM Error] HTTP {res.status_code}: {res.text[:120]}")
+                    print(f"[AgentEngine LLM Error] HTTP {res.status_code}: {res.text[:120]}")
         except Exception as e:
-            print(f"⚠️ [AgentEngine LLM Exception] {e}")
+            print(f"[AgentEngine LLM Exception] {e}")
 
         return None
 
@@ -508,9 +667,9 @@ class AgentEngine:
             url = f"{base_url}/chat/completions"
 
         system_prompt = (
-            "你正在参与国家级医科临床思维实训模拟。你扮演急诊抢救室52岁男性重症患者孙建国。\n"
-            "【当前病理特征】你突发极其剧烈的胸背部撕裂样、刀劈样剧痛3小时，伴大汗淋漓、胸闷气短，极度痛苦恐慌。\n"
-            "【隐秘病史设定】你有10年高血压史，最高曾达200/115mmHg。两周前擅自停药，今天下午在工地搬运重水泥猛用力时突发剧痛。\n"
+            f"你正在参与国家级医科临床思维实训模拟。你扮演急诊抢救室{self._persona_field('age', '52')}岁{self._persona_field('gender', '男')}性重症患者{self._persona_field('name', '孙建国')}。\n"
+            f"【当前病理特征】{self.case_data.get('chief_complaint') or '你突发极其剧烈的胸背部撕裂样、刀劈样剧痛3小时，伴大汗淋漓、胸闷气短，极度痛苦恐慌。'}\n"
+            f"【隐秘病史设定】{self._persona_history()}\n"
             "【回答规则】\n"
             "1. 严格使用第一人称患者口吻，口语化、痛苦呻吟断续、真实反映剧痛濒死感，每次回答带拟声词或粗重呼吸（如‘呃啊……’、‘咳……’）。\n"
             "2. 每次回答控制在45~90字以内，重点回答医生的问题，不要长篇大论。\n"
@@ -541,8 +700,8 @@ class AgentEngine:
                     if choices:
                         return choices[0].get("message", {}).get("content", "").strip()
                 else:
-                    print(f"⚠️ [AgentEngine LLM Error] HTTP {res.status_code}: {res.text[:120]}")
+                    print(f"[AgentEngine LLM Error] HTTP {res.status_code}: {res.text[:120]}")
         except Exception as e:
-            print(f"⚠️ [AgentEngine LLM Exception] {e}")
+            print(f"[AgentEngine LLM Exception] {e}")
             return None
         return None

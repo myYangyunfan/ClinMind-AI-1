@@ -18,7 +18,25 @@ class PhysiologyEngine:
     def __init__(self, initial_vitals: Optional[VitalsVector] = None, case_data: Optional[Dict[str, Any]] = None):
         self.case_data: Dict[str, Any] = case_data or {}
         self.case_id = str(self.case_data.get("case_id", "case_chest_pain_001"))
-        self.high_risk_aortic = self.case_id == "case_chest_pain_001"
+        # D-30: 病例行为开关来自病例 JSON 的 ``hemodynamic_rules``，不再按 case_id 硬编码。
+        self.hemodynamic_rules: Dict[str, Any] = (
+            self.case_data.get("hemodynamic_rules")
+            if isinstance(self.case_data.get("hemodynamic_rules"), dict)
+            else {}
+        )
+        self.high_risk_aortic = self._detect_high_risk_aortic()
+        # 夹层病程时钟：病例 JSON 优先，缺失时回落配置常量（默认 120/30/15/300）
+        self.rupture_to_effusion_seconds: float = self._rule_seconds(
+            "lethal_rupture_countdown_seconds", config.PHYS_RUPTURE_TO_EFFUSION_S
+        )
+        self.crisis_timeout_seconds: float = self._rule_seconds(
+            "uncontrolled_crisis_timeout_seconds", config.PHYS_CRISIS_TIMEOUT_S
+        )
+        # prescription_rules：内容层红线（spec/01 §1.5），红线判定优先于关键词模糊匹配
+        self.prescription_rules: List[Dict[str, Any]] = self._normalise_prescription_rules()
+        self.harmful_hits: int = 0
+        self.applied_prescription_rules: List[Dict[str, Any]] = []
+        self.last_prescription_rule: Optional[Dict[str, Any]] = None
         self.state: PatientStateEnum = PatientStateEnum.S0_STABLE
         self.vitals: VitalsVector = initial_vitals or VitalsVector(
             hr=108.0,
@@ -55,17 +73,166 @@ class PhysiologyEngine:
         """Get the current hemodynamic vitals vector."""
         return self.vitals
 
+    # ------------------------------------------------------------------
+    # D-30 / D-33: case-JSON driven hemodynamic switches
+    # ------------------------------------------------------------------
+    def _detect_high_risk_aortic(self) -> bool:
+        """Decide whether the aortic-dissection state machine applies.
+
+        Resolution order (front-compatible with the old ``case_id`` check):
+        1. ``hemodynamic_rules.high_risk_aortic`` explicit boolean;
+        2. ``hemodynamic_rules`` declaring a dissection clock
+           (``lethal_rupture_countdown_seconds``) -> dissection case;
+        3. ``hemodynamic_rules.pattern`` present (catalogue teaching cases:
+           ``stable_low_risk`` & friends) -> non-dissection;
+        4. no usable rules at all -> legacy behaviour: only the chest-pain case.
+        """
+        rules = self.hemodynamic_rules
+        if "high_risk_aortic" in rules:
+            return bool(rules.get("high_risk_aortic"))
+        if "lethal_rupture_countdown_seconds" in rules:
+            return True
+        if str(rules.get("pattern") or "").strip():
+            return False
+        return self.case_id == "case_chest_pain_001"
+
+    def _rule_seconds(self, key: str, default: float) -> float:
+        """Read a positive number of seconds from ``hemodynamic_rules``."""
+        try:
+            value = float(self.hemodynamic_rules.get(key, default))
+        except (TypeError, ValueError):
+            return float(default)
+        return value if value > 0 else float(default)
+
+    def _normalise_prescription_rules(self) -> List[Dict[str, Any]]:
+        """Normalise ``prescription_rules[]`` into a lowercase keyword index."""
+        normalised: List[Dict[str, Any]] = []
+        raw_rules = self.case_data.get("prescription_rules")
+        if not isinstance(raw_rules, list):
+            return normalised
+        for raw in raw_rules:
+            if not isinstance(raw, dict):
+                continue
+            keywords = [
+                str(k).strip().lower()
+                for k in (raw.get("match_keywords") or [])
+                if str(k).strip()
+            ]
+            if not keywords:
+                continue
+            severity = str(raw.get("severity") or "").strip().upper()
+            rule = dict(raw)
+            rule["keywords"] = keywords
+            rule["verdict"] = str(raw.get("verdict") or "").strip().upper()
+            # spec/01 §1.5: severity 仅对 RED_LINE 生效，默认 LETHAL
+            rule["severity"] = (severity or "LETHAL") if rule["verdict"] == "RED_LINE" else severity
+            normalised.append(rule)
+        return normalised
+
+    def match_prescription_rule(self, drug_name: str) -> Optional[Dict[str, Any]]:
+        """Match a drug name against ``prescription_rules[]`` (red lines first).
+
+        A RED_LINE rule that carries a ``prerequisite`` is *not* a red line while
+        ``self.beta_blocker_active`` is set: spec/01 §2.7 R2 only fires when the
+        vasodilator is used before heart-rate control.
+        """
+        needle = (drug_name or "").strip().lower()
+        if not needle or not self.prescription_rules:
+            return None
+        candidates: List[Tuple[int, int, Dict[str, Any]]] = []
+        for rule in self.prescription_rules:
+            matched = [kw for kw in rule["keywords"] if kw in needle or needle in kw]
+            if not matched:
+                continue
+            if rule["verdict"] == "RED_LINE" and rule.get("prerequisite") and self.beta_blocker_active:
+                continue
+            candidates.append((0 if rule["verdict"] == "RED_LINE" else 1, -max(len(k) for k in matched), rule))
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: (item[0], item[1]))
+        return candidates[0][2]
+
+    def apply_prescription_red_line(self, rule: Dict[str, Any], drug_name: str) -> Dict[str, Any]:
+        """Route a matched RED_LINE rule by ``severity`` (LETHAL | HARMFUL)."""
+        result: Dict[str, Any] = {
+            "is_lethal": False,
+            "is_harmful": False,
+            "is_red_line": True,
+            "rule_id": rule.get("rule_id"),
+            "verdict": rule.get("verdict"),
+            "severity": rule.get("severity"),
+            "drug_name": drug_name,
+            "status": "applied",
+            "message": "",
+            "harmful_hits": self.harmful_hits,
+            "harmful_escalated": False,
+            "previous_state": self.state,
+            "new_state": self.state,
+        }
+        self.last_prescription_rule = rule
+        self.applied_prescription_rules.append(
+            {"rule_id": rule.get("rule_id"), "severity": rule.get("severity"), "drug_name": drug_name}
+        )
+
+        if str(rule.get("severity") or "LETHAL").upper() == "HARMFUL":
+            self.harmful_hits += 1
+            escalated = self.harmful_hits >= config.PRESCRIPTION_HARMFUL_ESCALATION_HITS
+            if self.high_risk_aortic and self.state == PatientStateEnum.S0_STABLE:
+                self.state = PatientStateEnum.S1_HYPERTENSION_CRISIS
+            self.vitals.hr = min(150.0, self.vitals.hr + 10.0)
+            self.vitals.sbp = min(230.0, self.vitals.sbp + (10.0 if self.high_risk_aortic else 6.0))
+            if self.vitals.pain_vas < 10:
+                self.vitals.pain_vas += 1
+            result.update(
+                is_harmful=True,
+                harmful_hits=self.harmful_hits,
+                harmful_escalated=escalated,
+                message=(
+                    f"【有害红线】{rule.get('drug_name') or drug_name}当前并非首选："
+                    f"{rule.get('consequence_text') or '加重病情、恶化病程'}，可恢复，请立即纠正。"
+                ),
+            )
+            if escalated:
+                self.trigger_iatrogenic_rupture(
+                    f"累计 {self.harmful_hits} 次有害处方【{drug_name}】导致病程恶化不可逆"
+                )
+                result["message"] += "【累计恶化】有害处方累计达限，病程进入不可逆恶化。"
+            result["new_state"] = self.state
+            return result
+
+        # severity == LETHAL: 即刻致死恶化
+        self.trigger_iatrogenic_rupture(
+            f"误用禁忌药物【{drug_name}】{(rule.get('consequence_text') or '').strip()}"
+        )
+        result.update(
+            is_lethal=True,
+            message=(
+                f"【致命红线触发】{rule.get('drug_name') or drug_name}属于本病例绝对禁忌！"
+                f"{rule.get('consequence_text') or '触发致命恶化倒计时'}。"
+            ),
+        )
+        result["new_state"] = self.state
+        return result
+
     def apply_medication(self, drug_name: str, dose: float = 1.0, unit: str = "mg") -> Dict[str, Any]:
         """Apply a medication order to the hemodynamic system."""
         normalized_name = drug_name.strip().lower()
         result = {
             "is_lethal": False,
+            "is_harmful": False,
+            "is_red_line": False,
             "drug_name": drug_name,
             "status": "applied",
             "message": "",
             "previous_state": self.state,
             "new_state": self.state
         }
+
+        # 0. 内容层处方红线（prescription_rules，spec/01 §1.5）。
+        #    优先级高于下面的关键词模糊匹配：病例 JSON 显式声明的 severity 为准。
+        rule = self.match_prescription_rule(normalized_name)
+        if rule is not None and rule["verdict"] == "RED_LINE":
+            return self.apply_prescription_red_line(rule, drug_name)
 
         # The five catalogue cases are low-risk/general teaching scenarios.
         # They use the same safe API but must not inherit the aortic-dissection
@@ -78,6 +245,7 @@ class PhysiologyEngine:
         if is_lethal:
             self.trigger_iatrogenic_rupture(f"误用禁忌药物【{drug_name}】诱发内膜假腔破裂大出血")
             result["is_lethal"] = True
+            result["is_red_line"] = True
             result["message"] = (
                 f"【致命红线触发】在 Stanford A型主动脉夹层中禁忌使用【{drug_name}】！"
                 "抗血小板/抗凝/溶栓药物导致撕裂内膜假腔暴发性破裂，触发 120s 致命心包填塞倒计时！"
@@ -139,12 +307,19 @@ class PhysiologyEngine:
         result["new_state"] = self.state
         return result
 
-    def trigger_iatrogenic_rupture(self, reason: str) -> None:
-        """Trigger lethal rupture countdown due to contraindication."""
+    def lethal_countdown_seconds(self) -> float:
+        """Countdown length for a red-line drug, per case anatomy (D-33)."""
+        if self.high_risk_aortic:
+            return float(self.rupture_to_effusion_seconds)
+        # 非夹层病例没有心包填塞解剖，红线药物走 30 s 速崩
+        return float(config.PHYS_REDLINE_COLLAPSE_S)
+
+    def trigger_iatrogenic_rupture(self, reason: str, countdown: Optional[float] = None) -> None:
+        """Trigger lethal countdown. ``countdown`` overrides the case default (D-33)."""
         if self.state in [PatientStateEnum.S4_CARDIAC_TAMPONADE, PatientStateEnum.S5_AORTIC_RUPTURE, PatientStateEnum.S6_CARDIAC_ARREST]:
             return
         self.state = PatientStateEnum.S3_PERICARDIAL_EFFUSION
-        self.rupture_countdown = float(config.LETHAL_MEDICATION_KEYWORDS and 120.0)
+        self.rupture_countdown = float(self.lethal_countdown_seconds() if countdown is None else countdown)
         self.rupture_triggered_reason = reason
         self.vitals.consciousness = "痛苦呻吟，烦躁加剧，胸痛放射至全腹及背部"
 
@@ -153,44 +328,23 @@ class PhysiologyEngine:
         self.elapsed_seconds += dt
         self._noise_phase += dt * 0.5
 
+        # 1. Lethal Cardiac Arrest / Death State (irreversible for every case)
+        if self.state == PatientStateEnum.S6_CARDIAC_ARREST:
+            return self._freeze_death()
+
+        # 2. Lethal red-line countdown runs for aortic *and* content-layer cases
+        self._tick_lethal_countdown(dt)
+        if self.state == PatientStateEnum.S6_CARDIAC_ARREST:
+            return self.vitals
+
         if not self.high_risk_aortic:
             self._advance_generic(dt)
             return self.vitals
 
-        # 1. Lethal Cardiac Arrest / Death State
-        if self.state == PatientStateEnum.S6_CARDIAC_ARREST:
-            self.vitals.hr = 0.0
-            self.vitals.sbp = 0.0
-            self.vitals.dbp = 0.0
-            self.vitals.spo2 = 0.0
-            self.vitals.rr = 0.0
-            self.vitals.pain_vas = 0
-            self.vitals.ecg_rhythm = "Asystole / PEA (心室停搏/无脉电活动)"
-            self.vitals.consciousness = "深昏迷，双侧瞳孔散大固定，大动脉搏动消失 (已死亡)"
-            return self.vitals
-
-        # 2. Lethal Rupture Countdown in progress
-        if self.rupture_countdown is not None:
-            self.rupture_countdown = max(0.0, self.rupture_countdown - dt)
-            if self.rupture_countdown <= 0.0:
-                if self.state == PatientStateEnum.S3_PERICARDIAL_EFFUSION:
-                    self.state = PatientStateEnum.S4_CARDIAC_TAMPONADE
-                    self.vitals.sbp = min(self.vitals.sbp, 55.0)
-                    self.vitals.dbp = min(self.vitals.dbp, 35.0)
-                    self.vitals.hr = 45.0
-                    self.rupture_countdown = 30.0  # 30 seconds before cardiac arrest
-                elif self.state == PatientStateEnum.S4_CARDIAC_TAMPONADE:
-                    self.state = PatientStateEnum.S5_AORTIC_RUPTURE
-                    self.rupture_countdown = 15.0  # 15 seconds to terminal arrest
-                elif self.state == PatientStateEnum.S5_AORTIC_RUPTURE:
-                    self.state = PatientStateEnum.S6_CARDIAC_ARREST
-                    self.fatal_death_occurred = True
-                    self.rupture_countdown = None
-
         # 3. Pathophysiological State Dynamics
         if self.state == PatientStateEnum.S0_STABLE:
-            # If student does not lower BP for > 300s, crisis escalates
-            if self.elapsed_seconds > 300.0 and not (self.beta_blocker_active or self.vasodilator_active):
+            # If student does not lower BP for > crisis timeout, crisis escalates
+            if self.elapsed_seconds > self.crisis_timeout_seconds and not (self.beta_blocker_active or self.vasodilator_active):
                 self.state = PatientStateEnum.S1_HYPERTENSION_CRISIS
 
         if self.state == PatientStateEnum.S1_HYPERTENSION_CRISIS:
@@ -251,8 +405,60 @@ class PhysiologyEngine:
 
         return self.vitals
 
+    def _freeze_death(self) -> VitalsVector:
+        """Zero every vital sign once cardiac arrest is reached."""
+        self.vitals.hr = 0.0
+        self.vitals.sbp = 0.0
+        self.vitals.dbp = 0.0
+        self.vitals.spo2 = 0.0
+        self.vitals.rr = 0.0
+        self.vitals.pain_vas = 0
+        self.vitals.ecg_rhythm = "Asystole / PEA (心室停搏/无脉电活动)"
+        self.vitals.consciousness = "深昏迷，双侧瞳孔散大固定，大动脉搏动消失 (已死亡)"
+        return self.vitals
+
+    def _tick_lethal_countdown(self, dt: float) -> None:
+        """Advance the red-line countdown chain (S3 → S4 → S5 → S6)."""
+        if self.rupture_countdown is None:
+            return
+        self.rupture_countdown = max(0.0, self.rupture_countdown - dt)
+        if self.rupture_countdown > 0.0:
+            return
+
+        if not self.high_risk_aortic:
+            # 非夹层病例：无心包填塞分期，倒计时到点即心搏骤停
+            self.state = PatientStateEnum.S6_CARDIAC_ARREST
+            self.fatal_death_occurred = True
+            self.rupture_countdown = None
+            self._freeze_death()
+            return
+
+        if self.state == PatientStateEnum.S3_PERICARDIAL_EFFUSION:
+            self.state = PatientStateEnum.S4_CARDIAC_TAMPONADE
+            self.vitals.sbp = min(self.vitals.sbp, 55.0)
+            self.vitals.dbp = min(self.vitals.dbp, 35.0)
+            self.vitals.hr = 45.0
+            self.rupture_countdown = float(config.PHYS_TAMPONADE_STAGE_S)
+        elif self.state == PatientStateEnum.S4_CARDIAC_TAMPONADE:
+            self.state = PatientStateEnum.S5_AORTIC_RUPTURE
+            self.rupture_countdown = float(config.PHYS_RUPTURE_TO_ARREST_S)
+        elif self.state == PatientStateEnum.S5_AORTIC_RUPTURE:
+            self.state = PatientStateEnum.S6_CARDIAC_ARREST
+            self.fatal_death_occurred = True
+            self.rupture_countdown = None
+            self._freeze_death()
+
     def _advance_generic(self, dt: float) -> None:
         """Keep catalogue cases physiologically plausible without chest-pain escalation."""
+        if self.state == PatientStateEnum.S6_CARDIAC_ARREST:
+            self._freeze_death()
+            return
+        if self.rupture_countdown is not None:
+            # 红线致死倒计时期间生命体征单向恶化，不再向基线回归
+            self.vitals.hr = min(160.0, self.vitals.hr + 0.8 * dt)
+            self.vitals.sbp = max(40.0, self.vitals.sbp - 1.0 * dt)
+            self.vitals.spo2 = max(70.0, self.vitals.spo2 - 0.2 * dt)
+            return
         # Gentle regression toward the configured case baseline.  It gives the
         # monitor realistic movement while avoiding fabricated deterioration.
         rate = min(0.08, max(0.01, 0.02 * dt))

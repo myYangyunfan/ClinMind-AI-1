@@ -100,6 +100,13 @@ def _apply_emotion(session, code: str, ctx: Dict[str, Any]) -> bool:
     return True
 
 
+# ============ 处方红线（病例 JSON prescription_rules）============
+# 规则匹配与 severity 判罚都在 PhysiologyEngine 里完成（apply_medication 的
+# 第 0 步会先按病例 prescription_rules 匹配，命中 RED_LINE 就按 LETHAL /
+# HARMFUL 返回 is_lethal / is_harmful）。这里只负责把引擎的判定翻译成学员
+# 看得见的护栏反馈与报警，不重复实现匹配，避免两套数值互相叠加。
+
+
 @router.post("/execute", response_model=ActionResponse)
 def execute_action(req: ActionRequest):
     """Execute a student clinical decision action."""
@@ -240,17 +247,43 @@ def execute_action(req: ActionRequest):
         except (TypeError, ValueError):
             raise HTTPException(422, "剂量须为有限正数")
         unit = str(req.params.get("unit", "mg")) if req.params else "mg"
-        med_result = session.physiology_engine.apply_medication(content, dose, unit)
+        engine = session.physiology_engine
+        # apply_medication 第 0 步已按病例 prescription_rules 匹配红线并完成
+        # severity 判罚（LETHAL 走致死倒计时、HARMFUL 走可逆恶化+累计升级）。
+        med_result = engine.apply_medication(content, dose, unit)
+        is_red_line = bool(med_result.get("is_red_line"))
+        lethal = bool(med_result.get("is_lethal"))
+        harmful = bool(med_result.get("is_harmful")) and not lethal
+        escalated = bool(med_result.get("harmful_escalated"))
 
-        emotion_ctx = {"item": content, "dose": dose, "unit": unit}
-        if med_result.get("is_lethal"):
+        emotion_ctx = {
+            "item": content,
+            "dose": dose,
+            "unit": unit,
+            "rule_id": med_result.get("rule_id"),
+            "verdict": med_result.get("verdict"),
+            "severity": med_result.get("severity"),
+            "red_line": is_red_line,
+        }
+        if lethal:
             is_contraindicated = True
             warning_text = med_result.get("message")
             feedback_message = warning_text
             # Nurse emergency intercept alarm
             nurse_warn = session.agent_engine.generate_nurse_warning(content)
             dialogues.append(nurse_warn)
-            # 红线：由 physiology 判定致命，情绪层只记账不越权。
+            # 红线：判罚归引擎/病例规则，情绪层只记账不越权。
+            emotion_code, emotion_applied = "RED_LINE_MED", True
+        elif harmful:
+            # 可恢复恶化：不设 is_contraindicated（那不是一票否决），但必须在
+            # 响应里给出护栏反馈——之前这条路径是静默的。
+            warning_text = med_result.get("message") or (
+                f"【有害红线】{content} 在本病例并非首选，已出现可逆性恶化，请立即纠正。"
+            )
+            feedback_message = warning_text
+            if escalated:
+                feedback_message = f"{warning_text}【累计恶化】有害处方累计达限，病程已进入不可逆恶化。"
+            dialogues.append(session.agent_engine.generate_nurse_warning(content))
             emotion_code, emotion_applied = "RED_LINE_MED", True
         else:
             feedback_message = med_result.get("message")
@@ -326,13 +359,15 @@ def execute_action(req: ActionRequest):
         timestamp=time.time(),
         virtual_time_seconds=session.virtual_seconds,
         result=report_dict or feedback_message,
-        is_contraindicated=is_contraindicated
+        is_contraindicated=is_contraindicated,
+        warning_message=warning_text
     )
     session.action_history.append(action_record)
     if action_type != ActionType.INQUIRY:
         session.dialogues.append(DialogueMessage(speaker="doctor", text=content, role_title="接诊医生"))
     session.dialogues.extend(dialogues)
-    if is_contraindicated and warning_text:
+    if warning_text:
+        # 致命与可逆红线都要进报警列表：可逆恶化同样需要学员看到并纠正。
         session.agent_engine.state.active_critical_alarms.append(warning_text)
     session.final_assessment = None
     store.persist(session)

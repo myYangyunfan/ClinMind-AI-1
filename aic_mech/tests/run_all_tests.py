@@ -13,6 +13,7 @@ import sys
 import time
 import unittest
 import tempfile
+import threading
 from pathlib import Path
 
 # Add project root to sys.path
@@ -102,7 +103,12 @@ class Tee:
         self.files = files
     def write(self, obj):
         for f in self.files:
-            f.write(obj)
+            try:
+                f.write(obj)
+            except UnicodeEncodeError:
+                # GBK 控制台写不了 emoji 等字符：降级替换，绝不让日志输出打断测试。
+                enc = getattr(f, "encoding", None) or "utf-8"
+                f.write(obj.encode(enc, "replace").decode(enc, "replace"))
             f.flush()
     def flush(self):
         for f in self.files:
@@ -121,6 +127,9 @@ def run_all():
 
     tracer = SimpleCoverageTracer(os.path.join(PROJECT_ROOT, "app"))
     sys.settrace(tracer.trace_fn)
+    # FastAPI TestClient 的同步端点跑在工作线程里，只 settrace 主线程会让
+    # routes_action.py 这类模块的覆盖率恒显示 10% 左右（测量口径失真）。
+    threading.settrace(tracer.trace_fn)
 
     start_time = time.time()
     results = {}
@@ -145,6 +154,23 @@ def run_all():
             ("test_ged_evaluator_fatal_contraindication", te.test_ged_evaluator_fatal_contraindication),
             ("test_api_full_flow", te.test_api_full_flow),
         ]
+        # 自动发现：任何新增的 test_*（无必填参数的零参函数）都自动计入，避免
+        # 手工白名单漏登记导致新用例「写了但不算数」。
+        _listed = {n for n, _ in te_tests}
+        for _name in sorted(dir(te)):
+            if not _name.startswith("test_") or _name in _listed:
+                continue
+            _fn = getattr(te, _name)
+            if not callable(_fn):
+                continue
+            _required = [
+                p for p in inspect.signature(_fn).parameters.values()
+                if p.default is inspect._empty
+                and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+            ]
+            if _required:
+                continue
+            te_tests.append((_name, _fn))
         passed_te = 0
         for name, fn in te_tests:
             try:
@@ -187,7 +213,12 @@ def run_all():
     api_emotion_suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_api_emotion")
     api_emotion_res = unittest.TextTestRunner(verbosity=1).run(api_emotion_suite)
 
+    print("\n[PHASE 8] Executing tests/test_outcomes.py (Outcome Engine & Knowledge Cards)...")
+    outcomes_suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_outcomes")
+    outcomes_res = unittest.TextTestRunner(verbosity=1).run(outcomes_suite)
+
     sys.settrace(None)
+    threading.settrace(None)
     elapsed = time.time() - start_time
 
     # Coverage summary
@@ -196,7 +227,7 @@ def run_all():
     print("\n" + "=" * 70)
     print("  AUTOMATION TEST RESULTS SUMMARY")
     print("=" * 70)
-    suites = [e2e_res, static_res, session_res, v2_res, emotion_res, api_emotion_res]
+    suites = [e2e_res, static_res, session_res, v2_res, emotion_res, api_emotion_res, outcomes_res]
     total_run = len(te_tests) + sum(r.testsRun for r in suites)
     total_passed = passed_te + sum(r.testsRun - len(r.failures) - len(r.errors) for r in suites)
     total_failed = len(te_tests) - passed_te + int(load_failed) + sum(len(r.failures) + len(r.errors) for r in suites)

@@ -7,6 +7,7 @@ OSCE competency radar scores, cognitive bias attribution, and graph comparisons.
 
 import json
 import math
+import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple, Set
 import networkx as nx
@@ -437,9 +438,9 @@ class GEDEvaluator:
                             paragraphs.append(f"• [🟢 临床思维专家白盒复盘由在线大模型动态循证生成: {model}]")
                             return paragraphs
                 else:
-                    print(f"⚠️ [GEDEvaluator LLM Error] HTTP {res.status_code}: {res.text[:120]}")
+                    print(f"[GEDEvaluator LLM Error] HTTP {res.status_code}: {res.text[:120]}")
         except Exception as e:
-            print(f"⚠️ [GEDEvaluator LLM Exception] {e}")
+            print(f"[GEDEvaluator LLM Exception] {e}")
 
         return None
 
@@ -482,3 +483,514 @@ class GEDEvaluator:
             })
 
         return {"nodes": nodes, "links": links}
+
+
+# ===================== P3: 病例结局（outcomes）与处方红线 =====================
+# 病例 JSON 里的 `outcomes[].condition` 是给策划/教研写的人读表达式，形如
+#   "HR < 60 && 100 <= SBP <= 120 && has('N13') && !has_red_line"
+# 这里用一个手写的小解析器求值。**绝不使用 eval/exec**：病例文件是可编辑的
+# 外部数据，任何能执行任意代码的入口都会把数据错误升级成安全漏洞。
+#
+# 支持的语法（覆盖全部 6 个病例）：
+#   数字/字符串字面量、变量、函数调用（has/elapsed/outcome_of）、
+#   比较运算符 < <= > >= == !=、链式比较（100 <= SBP <= 120）、
+#   逻辑 && || !、括号。
+# 未知变量/未知函数**抛错**，不静默当 False——写错变量名的 condition 会漏判
+# 结局，而结局直接影响结案评价，静默降级比崩溃更难查。
+
+
+class OutcomeConditionError(ValueError):
+    """病例 condition 无法解析或求值时抛出的基类错误。"""
+
+
+class ConditionSyntaxError(OutcomeConditionError):
+    """语法不合法（括号不配对、运算符缺操作数、表达式尾部有多余内容等）。"""
+
+
+class UnknownVariableError(OutcomeConditionError):
+    """condition 里出现了上下文无法提供的变量名。"""
+
+
+class UnknownFunctionError(OutcomeConditionError):
+    """condition 里出现了未注册的函数名。"""
+
+
+_TOKEN_RE = re.compile(
+    r"\s*(?:"
+    r"(?P<number>\d+(?:\.\d+)?)"
+    r"|(?P<string>'[^']*'|\"[^\"]*\")"
+    r"|(?P<op>&&|\|\||<=|>=|==|!=|[<>!(),])"
+    r"|(?P<name>[A-Za-z_][A-Za-z0-9_]*)"
+    r")"
+)
+
+_COMPARISON_OPS = ("<", "<=", ">", ">=", "==", "!=")
+
+# 结局优先级：死亡 > 离院 > 延误 > 治愈。条件之间不保证互斥（例如 C 与 B
+# 可能同时成立），临床语义上更坏的那个必须优先。
+OUTCOME_PRIORITY = ("D", "C", "B", "A")
+
+
+def _tokenize_condition(condition: str):
+    """把 condition 切成 (kind, value) 记号序列，末尾补 end。"""
+    text = condition or ""
+    tokens = []
+    pos = 0
+    length = len(text)
+    while pos < length:
+        match = _TOKEN_RE.match(text, pos)
+        if not match:
+            rest = text[pos:].strip()
+            if not rest:
+                break
+            raise ConditionSyntaxError(
+                f"条件表达式在第 {pos} 个字符处无法识别：{rest[:24]!r}（原文：{condition!r}）"
+            )
+        pos = match.end()
+        if match.group("number"):
+            tokens.append(("number", float(match.group("number"))))
+        elif match.group("string"):
+            tokens.append(("string", match.group("string")[1:-1]))
+        elif match.group("op"):
+            tokens.append(("op", match.group("op")))
+        else:
+            tokens.append(("name", match.group("name")))
+    tokens.append(("end", None))
+    return tokens
+
+
+class _ConditionParser:
+    """递归下降解析器，产出纯元组 AST（解析与求值彻底分离）。"""
+
+    def __init__(self, tokens, text: str):
+        self._tokens = tokens
+        self._index = 0
+        self._text = text
+
+    # -- 记号游标 ---------------------------------------------------------
+    def _peek(self):
+        return self._tokens[self._index]
+
+    def _advance(self):
+        token = self._tokens[self._index]
+        self._index += 1
+        return token
+
+    def _at_op(self, *ops: str) -> bool:
+        kind, value = self._peek()
+        return kind == "op" and value in ops
+
+    def _expect_op(self, op: str) -> None:
+        kind, value = self._peek()
+        if kind != "op" or value != op:
+            raise ConditionSyntaxError(
+                f"条件表达式缺少 {op!r}，实际读到 {value!r}（原文：{self._text!r}）"
+            )
+        self._advance()
+
+    # -- 文法 -------------------------------------------------------------
+    def parse(self):
+        node = self._parse_or()
+        kind, value = self._peek()
+        if kind != "end":
+            raise ConditionSyntaxError(
+                f"条件表达式末尾存在多余内容 {value!r}（原文：{self._text!r}）"
+            )
+        return node
+
+    def _parse_or(self):
+        node = self._parse_and()
+        while self._at_op("||"):
+            self._advance()
+            node = ("or", node, self._parse_and())
+        return node
+
+    def _parse_and(self):
+        node = self._parse_not()
+        while self._at_op("&&"):
+            self._advance()
+            node = ("and", node, self._parse_not())
+        return node
+
+    def _parse_not(self):
+        if self._at_op("!"):
+            self._advance()
+            return ("not", self._parse_not())
+        return self._parse_comparison()
+
+    def _parse_comparison(self):
+        operands = [self._parse_operand()]
+        operators = []
+        while self._at_op(*_COMPARISON_OPS):
+            operators.append(self._advance()[1])
+            operands.append(self._parse_operand())
+        if not operators:
+            return operands[0]
+        return ("cmp", operands, operators)
+
+    def _parse_operand(self):
+        kind, value = self._peek()
+        if kind == "number":
+            self._advance()
+            return ("number", value)
+        if kind == "string":
+            self._advance()
+            return ("string", value)
+        if kind == "op" and value == "(":
+            self._advance()
+            node = self._parse_or()
+            self._expect_op(")")
+            return node
+        if kind == "name":
+            self._advance()
+            if self._at_op("("):
+                self._advance()
+                args = []
+                if not self._at_op(")"):
+                    while True:
+                        args.append(self._parse_operand())
+                        if self._at_op(","):
+                            self._advance()
+                            continue
+                        break
+                self._expect_op(")")
+                return ("call", value, args)
+            return ("var", value)
+        if kind == "end":
+            raise ConditionSyntaxError(f"条件表达式意外提前结束（原文：{self._text!r}）")
+        raise ConditionSyntaxError(
+            f"条件表达式在 {value!r} 处缺少操作数（原文：{self._text!r}）"
+        )
+
+
+def _as_bool(value, operator: str, expression: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    raise ConditionSyntaxError(
+        f"运算符 {operator} 的操作数必须是布尔值，实际得到 {type(value).__name__}"
+        f"（原文：{expression!r}）"
+    )
+
+
+def _compare(op: str, left, right, expression: str) -> bool:
+    if isinstance(left, bool) or isinstance(right, bool):
+        if op == "==":
+            return bool(left) == bool(right)
+        if op == "!=":
+            return bool(left) != bool(right)
+        raise ConditionSyntaxError(f"布尔值只能做 == / != 比较（原文：{expression!r}）")
+    if isinstance(left, str) or isinstance(right, str):
+        if not (isinstance(left, str) and isinstance(right, str)):
+            raise ConditionSyntaxError(
+                f"字符串与数值不能比较：{left!r} {op} {right!r}（原文：{expression!r}）"
+            )
+        if op == "==":
+            return left == right
+        if op == "!=":
+            return left != right
+        raise ConditionSyntaxError(f"字符串只支持 == / != 比较（原文：{expression!r}）")
+    left_value = float(left)
+    right_value = float(right)
+    if op == "<":
+        return left_value < right_value
+    if op == "<=":
+        return left_value <= right_value
+    if op == ">":
+        return left_value > right_value
+    if op == ">=":
+        return left_value >= right_value
+    if op == "==":
+        return left_value == right_value
+    return left_value != right_value
+
+
+def _fn_has(context, args, expression: str) -> bool:
+    if len(args) != 1 or not isinstance(args[0], str):
+        raise ConditionSyntaxError(f"has() 只接受一个字符串参数（原文：{expression!r}）")
+    nodes = context.get("nodes") or ()
+    return str(args[0]) in {str(node) for node in nodes}
+
+
+def _fn_elapsed(context, args, expression: str) -> float:
+    if len(args) != 1 or not isinstance(args[0], str):
+        raise ConditionSyntaxError(f"elapsed() 只接受一个字符串参数（原文：{expression!r}）")
+    table = context.get("elapsed") or {}
+    return float(table.get(str(args[0]), 0.0))
+
+
+def _fn_outcome_of(context, args, expression: str) -> str:
+    if len(args) != 1 or not isinstance(args[0], str):
+        raise ConditionSyntaxError(f"outcome_of() 只接受一个字符串参数（原文：{expression!r}）")
+    table = context.get("outcomes") or {}
+    return str(table.get(str(args[0]), "UNKNOWN"))
+
+
+_CONDITION_FUNCTIONS = {
+    "has": _fn_has,
+    "elapsed": _fn_elapsed,
+    "outcome_of": _fn_outcome_of,
+}
+
+
+def _evaluate_node(node, context, expression: str):
+    tag = node[0]
+    if tag == "number":
+        return node[1]
+    if tag == "string":
+        return node[1]
+    if tag == "var":
+        name = node[1]
+        if name in context:
+            return context[name]
+        if name in ("true", "True"):
+            return True
+        if name in ("false", "False"):
+            return False
+        raise UnknownVariableError(
+            f"条件表达式引用了未知变量 {name!r}（原文：{expression!r}）。"
+            f"可用变量：{', '.join(sorted(map(str, context)))}"
+        )
+    if tag == "call":
+        name = node[1]
+        handler = _CONDITION_FUNCTIONS.get(name)
+        if handler is None:
+            raise UnknownFunctionError(
+                f"条件表达式引用了未注册的函数 {name!r}（原文：{expression!r}）。"
+                f"可用函数：{', '.join(sorted(_CONDITION_FUNCTIONS))}"
+            )
+        args = [_evaluate_node(arg, context, expression) for arg in node[2]]
+        return handler(context, args, expression)
+    if tag == "not":
+        value = _as_bool(_evaluate_node(node[1], context, expression), "!", expression)
+        return not value
+    if tag in ("and", "or"):
+        # 刻意不做短路：两侧都求值，写错的变量名在 && / || 后面也照样暴露。
+        left = _as_bool(_evaluate_node(node[1], context, expression), tag, expression)
+        right = _as_bool(_evaluate_node(node[2], context, expression), tag, expression)
+        return (left and right) if tag == "and" else (left or right)
+    if tag == "cmp":
+        operands = [_evaluate_node(item, context, expression) for item in node[1]]
+        results = [
+            _compare(op, operands[i], operands[i + 1], expression)
+            for i, op in enumerate(node[2])
+        ]
+        return all(results)
+    raise ConditionSyntaxError(f"无法识别的表达式节点 {tag!r}（原文：{expression!r}）")
+
+
+class ConditionExpression:
+    """解析后的 condition：可重复求值，解析错误在构造时就暴露。"""
+
+    def __init__(self, text: str, ast):
+        self.text = text
+        self.ast = ast
+
+    def evaluate(self, context: Dict[str, Any]) -> bool:
+        value = _evaluate_node(self.ast, dict(context or {}), self.text)
+        return _as_bool(value, "条件整体", self.text)
+
+    def __repr__(self) -> str:  # pragma: no cover - 调试用
+        return f"ConditionExpression({self.text!r})"
+
+
+def parse_condition(condition: str) -> ConditionExpression:
+    """解析 condition；语法错误抛 ConditionSyntaxError（不执行任何代码）。"""
+    if not isinstance(condition, str) or not condition.strip():
+        raise ConditionSyntaxError(f"condition 不能为空：{condition!r}")
+    parser = _ConditionParser(_tokenize_condition(condition), condition)
+    return ConditionExpression(condition, parser.parse())
+
+
+def evaluate_condition(condition: str, context: Dict[str, Any]) -> bool:
+    """解析并求值一条 condition，返回布尔结果。"""
+    return parse_condition(condition).evaluate(context)
+
+
+def resolve_outcome(case_data: Dict[str, Any], context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """按病例 `outcomes[]` 求值，返回命中的结局（含 code/label/title/narration 等）。
+
+    优先级见 ``OUTCOME_PRIORITY``。都不命中时返回 None——「未达任何结局」
+    是合法状态（继续救治），不能硬塞一个默认结局。
+    """
+    outcomes = (case_data or {}).get("outcomes") or {}
+    if not isinstance(outcomes, dict):
+        return None
+    ordered_codes = [code for code in OUTCOME_PRIORITY if code in outcomes]
+    ordered_codes.extend(code for code in outcomes if code not in OUTCOME_PRIORITY)
+    for code in ordered_codes:
+        item = outcomes.get(code)
+        if not isinstance(item, dict):
+            continue
+        condition = item.get("condition")
+        if not condition:
+            continue
+        if evaluate_condition(condition, context):
+            resolved = dict(item)
+            resolved.setdefault("code", code)
+            return resolved
+    return None
+
+
+# ---- 从会话现场构建求值上下文 ------------------------------------------------
+
+def action_kind(action) -> str:
+    """动作类型的小写字符串（ActionType 枚举与裸字符串都能吃）。"""
+    action_type = getattr(action, "action_type", "")
+    return str(getattr(action_type, "value", action_type)).lower()
+
+
+def treated_medications(action_records) -> List[ActionRecord]:
+    """会话里被采纳的用药处置（``treated`` / ``treated_count`` 的唯一口径）。
+
+    判定口径：``action_type`` 为 medication/prescription，且**不是红线用药**。
+    红线（LETHAL 的 ``is_contraindicated``、HARMFUL 落下的 ``warning_message``）
+    一律不算「有效处置」——它们已经由 ``has_red_line`` 走 D 结局，不该再用来
+    拿 A（治愈/稳定）。
+    """
+    treated: List[ActionRecord] = []
+    for action in action_records or []:
+        if action_kind(action) not in ("medication", "prescription"):
+            continue
+        if getattr(action, "is_contraindicated", False):
+            continue
+        if str(getattr(action, "warning_message", "") or "").strip():
+            continue
+        treated.append(action)
+    return treated
+
+
+def has_red_line(action_records) -> bool:
+    """本次会话是否触碰过处方红线（致命与可逆都算）。
+
+    判定权归 PhysiologyEngine：它在动作当时按病例 ``prescription_rules`` 匹配
+    并把结论写进返回值（is_lethal / is_harmful），routes_action 再落进
+    ActionRecord：LETHAL → ``is_contraindicated=True`` + ``warning_message``；
+    HARMFUL → 只写 ``warning_message``（可逆，不是一票否决）。
+
+    这里刻意不重新匹配关键词——带「未先用β受体阻滞剂」前提的规则（胸痛病例
+    的硝普钠单用）事后重算会得出与当时相反的结论：先用对了β阻滞剂，单用硝普钠
+    其实是 TARGET，事后按内容硬匹配会把它误判成红线。
+    """
+    for action in action_records or []:
+        if getattr(action, "is_contraindicated", False):
+            return True
+        if str(getattr(action, "warning_message", "") or "").strip():
+            return True
+    return False
+
+
+def golden_node_ids(session) -> Set[str]:
+    """复用 GED 的语义匹配，取得学员命中的金标准节点（N13/N14 ...）。"""
+    evaluator = getattr(session, "ged_evaluator", None)
+    history = list(getattr(session, "action_history", None) or [])
+    if evaluator is None or not history:
+        return set()
+    try:
+        graph, _ = evaluator.build_student_graph(history)
+    except Exception:  # 匹配失败不应阻断结局判定
+        return set()
+    return {str(node) for node in graph.nodes() if not str(node).startswith("U_")}
+
+
+def physiology_outcome_label(engine) -> str:
+    """把生理状态机映射成 condition 里的 outcome_of('physiology') 词表。"""
+    if engine is None:
+        return "UNKNOWN"
+    if getattr(engine, "fatal_death_occurred", False):
+        return "ARREST"
+    state = engine.get_state()
+    name = str(getattr(state, "name", state))
+    return {
+        "S0_STABLE": "STABLE",
+        "S1_HYPERTENSION_CRISIS": "CRISIS",
+        "S2_PHARMACO_CONTROLLED": "CONTROLLED",
+        "S3_PERICARDIAL_EFFUSION": "EFFUSION",
+        "S4_CARDIAC_TAMPONADE": "TAMPONADE",
+        "S5_AORTIC_RUPTURE": "RUPTURE",
+        "S6_CARDIAC_ARREST": "ARREST",
+    }.get(name, name)
+
+
+def _emotion_history(emotion):
+    return list(getattr(emotion, "_history", None) or [])
+
+
+def elapsed_since_trust_low(emotion, threshold: float = 0.10) -> float:
+    """信任度连续低于阈值的持续秒数（condition 里的 elapsed('trust_low')）。"""
+    history = _emotion_history(emotion)
+    if not history:
+        return 0.0
+    current_seconds = float(getattr(emotion, "virtual_seconds", 0.0) or 0.0)
+    start = None
+    for entry in reversed(history):
+        stamp, trust = (entry[0], entry[1]) if isinstance(entry, (tuple, list)) else (0.0, 1.0)
+        if float(trust) <= threshold:
+            start = float(stamp)
+        else:
+            break
+    if start is None:
+        return 0.0
+    return max(0.0, current_seconds - start)
+
+
+def negative_streak(emotion) -> int:
+    """信任度连续下跌的事件次数（condition 里的 negative_streak）。"""
+    log = list(getattr(emotion, "delta_log", None) or [])
+    streak = 0
+    for record in reversed(log):
+        if not isinstance(record, dict) or record.get("metric") != "patient_trust":
+            continue
+        if float(record.get("delta", 0.0) or 0.0) < 0:
+            streak += 1
+        else:
+            break
+    return streak
+
+
+def build_outcome_context(session) -> Dict[str, Any]:
+    """从会话现场收集 condition 需要的全部变量（未知变量仍会抛错）。"""
+    engine = getattr(session, "physiology_engine", None)
+    vitals = engine.get_current_vitals() if engine is not None else None
+    emotion = getattr(session, "emotion", None)
+    snapshot: Dict[str, Any] = {}
+    if emotion is not None:
+        try:
+            snapshot = emotion.snapshot() or {}
+        except Exception:
+            snapshot = {}
+    case_data = getattr(session, "case_data", {}) or {}
+    treated = treated_medications(getattr(session, "action_history", None))
+    context: Dict[str, Any] = {
+        # 动作级事实：与 trust 随时间衰减无关，是「真的处置过」的稳定守门条件。
+        "treated": bool(treated),
+        "treated_count": len(treated),
+        "HR": float(getattr(vitals, "hr", 0.0)),
+        "SBP": float(getattr(vitals, "sbp", 0.0)),
+        "DBP": float(getattr(vitals, "dbp", 0.0)),
+        "RR": float(getattr(vitals, "rr", 0.0)),
+        "SpO2": float(getattr(vitals, "spo2", 0.0)),
+        "pain_vas": float(getattr(vitals, "pain_vas", 0.0)),
+        "trust": float(snapshot.get("patient_trust", 0.0)),
+        "patient_anxiety": float(snapshot.get("patient_anxiety", 0.0)),
+        "family_anxiety": float(snapshot.get("family_anxiety", 0.0)),
+        "negative_streak": negative_streak(emotion),
+        "has_red_line": has_red_line(getattr(session, "action_history", None)),
+        "nodes": sorted(golden_node_ids(session)),
+        "elapsed": {"trust_low": elapsed_since_trust_low(emotion)},
+        "outcomes": {"physiology": physiology_outcome_label(engine)},
+    }
+    return context
+
+
+def resolve_session_outcome(session) -> Optional[Dict[str, Any]]:
+    """按会话当前状态判定结局；病例没有 outcomes 时返回 None。"""
+    case_data = getattr(session, "case_data", {}) or {}
+    if not case_data.get("outcomes"):
+        return None
+    return resolve_outcome(case_data, build_outcome_context(session))
+
+
+def knowledge_card_of(case_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """病例自带的知识卡（结案报告原样带出）。"""
+    card = (case_data or {}).get("knowledge_card")
+    return card if isinstance(card, dict) else None

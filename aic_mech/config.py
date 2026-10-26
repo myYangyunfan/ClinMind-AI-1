@@ -191,6 +191,10 @@ TIME_ACCELERATION_FACTOR: float = 1.0  # 1.0 = real-time, can accelerate virtual
 # Emotion / relationship engine parameters
 # Frozen by spec/05-P0接口契约.md §1 -- names, types and defaults must match it.
 # ---------------------------------------------------------------------------
+# 病例数据校验（D-27）：默认档「跳过并留痕」，严格档「拒绝启动」
+CASE_VALIDATION_STRICT: bool = False
+
+# ---------------------------------------------------------------------------
 EMOTION_TICK_SECONDS: float = 5.0          # 情绪结算周期（秒）
 EMOTION_TRUST_INIT: float = 0.40           # 信任度初始值
 EMOTION_PATIENT_ANXIETY_INIT: float = 0.50  # 患者焦虑初始值
@@ -207,6 +211,24 @@ EMOTION_LEAVE_SUSTAINED: float = 0.10       # 持续离院阈值
 EMOTION_LEAVE_SUSTAINED_SECONDS: int = 60   # 持续离院计时（秒）
 EMOTION_TREND_WINDOW_SECONDS: int = 30      # 趋势箭头窗口（秒）
 EMOTION_UI_HINT_MIN_DELTA: float = 0.005    # UI/日志提示阈值（不影响引擎累计）
+
+# ---------------------------------------------------------------------------
+# P3 接线参数：情绪文案分档 + 处方红线严重度 + 血流动力学规则（spec/01 §1.2/§1.5，
+# spec/02 §K-11）。全部为可注入常量，病例 JSON 的 ``hemodynamic_rules`` 优先。
+# ---------------------------------------------------------------------------
+EMOTION_SCRIPT_TRUST_HIGH: float = 0.70     # 文案 high 档下限（patient_trust ≥ 0.70）
+EMOTION_SCRIPT_TRUST_MID: float = 0.30      # 文案 mid 档下限（0.30 ≤ trust < 0.70）
+
+# 夹层病程时钟（原 physiology_engine 魔法数字 120/30/15 常态化为配置项）
+PHYS_RUPTURE_TO_EFFUSION_S: float = 120.0   # 致死红线 → S3 心包渗血倒计时
+PHYS_TAMPONADE_STAGE_S: float = 30.0        # S3 → S4 心包填塞
+PHYS_RUPTURE_TO_ARREST_S: float = 15.0      # S4 → S5 破裂 / S5 → S6 骤停
+PHYS_CRISIS_TIMEOUT_S: float = 300.0        # 未降压（S0）超时进入高血压危象
+
+# 非夹层教学病例的红线致死路径：无心包填塞解剖，直接 30 s 速崩至 S6
+PHYS_REDLINE_COLLAPSE_S: float = 30.0
+# HARMFUL 处方累计次数达到该值即升级为致死恶化（spec/01 §1.5：累计 2 次进结局 D）
+PRESCRIPTION_HARMFUL_ESCALATION_HITS: int = 2
 
 # Fatal Red-line Medications (Contraindicated for Stanford Type A Aortic Dissection)
 LETHAL_MEDICATION_KEYWORDS = [

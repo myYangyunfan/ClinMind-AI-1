@@ -298,6 +298,64 @@ class TestStaticAssetsConsistency(unittest.TestCase):
         self.assertIn("anyModalOpen()", code, "全局快捷键未使用 anyModalOpen")
         self.assertNotIn("!dialog.open&&!modalOpen", code, "Esc 仍只判定单一 dialog")
 
+    def test_report_outcome_and_knowledge_cards(self):
+        """结案报告要有结局卡、复盘知识点卡与情绪终值，类名全部在 scene.css 有规则。"""
+        code = _slurp(SCENE_JS)
+        css = _slurp(SCENE_CSS)
+        for token in (
+            "renderAssessment",
+            "reportOutcome",
+            "reportKnowledge",
+            "appendOutcomeCard",
+            "appendKnowledgeCard",
+            "appendEmotionFinale",
+            "outcome",
+            "knowledge_card",
+            "trust_level",
+            "patient_anxiety",
+            "family_anxiety",
+        ):
+            self.assertIn(token, code, f"scene.js 缺少结局/知识点/情绪终值要素: {token}")
+        for cls in (
+            "scene-outcome-card",
+            "scene-outcome-code",
+            "scene-outcome-body",
+            "scene-outcome-title",
+            "scene-outcome-desc",
+            "scene-outcome-a",
+            "scene-outcome-b",
+            "scene-outcome-c",
+            "scene-outcome-d",
+            "scene-knowledge-card",
+            "scene-knowledge-title",
+            "scene-knowledge-list",
+            "scene-knowledge-item",
+            "scene-knowledge-item-title",
+            "scene-knowledge-item-body",
+            "scene-knowledge-item-pitfall",
+            "scene-emotion-finale",
+            "scene-finale-title",
+            "scene-finale-grid",
+            "scene-finale-item",
+            "scene-finale-label",
+            "scene-finale-value",
+            "scene-finale-trust",
+            "scene-finale-anxiety",
+            "scene-finale-family",
+        ):
+            self.assertIn(f".{cls}", css, f"scene.css 缺少 .{cls} 规则")
+
+    def test_report_cards_hide_when_backend_fields_missing(self):
+        """outcome / knowledge_card 缺失时整块隐藏，不得因读取 undefined 报错。"""
+        code = _slurp(SCENE_JS)
+        for guard in (
+            "if(outcome)appendOutcomeCard",
+            "if(knowledge)appendKnowledgeCard",
+            "if (!rows.length) return;",
+            "if (!title && !points.length) return null;",
+        ):
+            self.assertIn(guard, code, f"scene.js 缺少缺失字段兜底: {guard}")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

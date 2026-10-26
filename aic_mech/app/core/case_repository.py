@@ -15,6 +15,10 @@ from typing import Any, Dict, List, Optional
 import config
 
 
+class CaseValidationError(ValueError):
+    """Raised when a bundled case file violates the data contract (D-27)."""
+
+
 class CaseRepository:
     """Read-only repository for the bundled fictional teaching cases."""
 
@@ -22,14 +26,28 @@ class CaseRepository:
         self.data_dir = data_dir or config.DATA_DIR
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._index: Dict[str, Dict[str, Any]] = {}
+        self._warnings: List[str] = []
         self._load_all()
 
     def _read_json(self, path: Path) -> Dict[str, Any]:
         with path.open("r", encoding="utf-8-sig") as handle:
             value = json.load(handle)
         if not isinstance(value, dict) or not value.get("case_id"):
-            raise ValueError(f"病例文件格式无效：{path.name}")
+            raise CaseValidationError(f"病例文件格式无效（缺 case_id）：{path}")
         return value
+
+    def _handle_invalid_case(self, path: Path, exc: Exception) -> None:
+        """坏病例的处理：严格档拒绝启动，默认档跳过并留痕（D-27）。"""
+        message = f"病例文件被拒绝：{path} -> {type(exc).__name__}: {exc}"
+        if getattr(config, "CASE_VALIDATION_STRICT", False):
+            raise CaseValidationError(message) from exc
+        self._warnings.append(message)
+        print(f"[CaseRepository] {message}")
+
+    @property
+    def warnings(self) -> List[str]:
+        """被跳过的病例文件（默认档取证用，只读）。"""
+        return list(self._warnings)
 
     def _load_all(self) -> None:
         index_path = self.data_dir / "cases" / "index.json"
@@ -47,9 +65,9 @@ class CaseRepository:
                 continue
             try:
                 data = self._read_json(path)
-            except (OSError, ValueError, json.JSONDecodeError):
-                # A malformed optional case must not prevent the core case
-                # from starting.  The API simply omits that case.
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                # 默认档：坏的可选病例不能挡住核心病例启动，但必须留痕而不是静默吞掉。
+                self._handle_invalid_case(path, exc)
                 continue
             self._cache[str(data["case_id"])] = data
 

@@ -629,7 +629,7 @@
     "A": {
       "code": "A",
       "label": "治愈/稳定",
-      "condition": "!has_red_line && HR < 100 && trust >= 0.20",
+      "condition": "!has_red_line && treated && HR < 100",
       "title": "补液补对了，一夜缓冲",
       "narration": "第一袋补液盐喝下去四十分钟，绞痛间隔就拉长了。到晚上他跑了三趟厕所，不再是六趟。第二天早上大便开始成形，血钾从 3.2 回到 3.9。你没有用一支强力止泻药，也没有开一粒抗生素，只是把水、盐和时间还给了他的肠子。",
       "patient_line": "大夫，这咸水还真管用，肚子里没那么翻腾了。",
@@ -645,7 +645,7 @@
     "B": {
       "code": "B",
       "label": "延误",
-      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(HR < 100 && trust >= 0.20)",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(treated && HR < 100)",
       "title": "泻是止住了，钾掉下去了",
       "narration": "洛哌丁胺确实让他一晚上只跑了两趟厕所，可第二天他腿软得站不起来。复查血钾 2.8 mmol/L。你把症状按下去了，代价是把病因关在了肠子里，还顺手带走了一部分电解质。",
       "patient_line": "大夫，我这腿怎么一点劲儿都使不上？",

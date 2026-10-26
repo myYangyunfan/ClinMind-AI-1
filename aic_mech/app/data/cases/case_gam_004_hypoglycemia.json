@@ -629,7 +629,7 @@
     "A": {
       "code": "A",
       "label": "治愈/稳定",
-      "condition": "!has_red_line && HR < 100 && trust >= 0.20",
+      "condition": "!has_red_line && treated && HR <= 105",
       "title": "一块糖，一条命",
       "narration": "三片葡萄糖片下去，八分钟后他眼神就聚起来了。十五分钟复测 4.6 mmol/L，出汗停了，手也不抖了。你没有把他推进 CT 室，而是先花了六十秒测了一滴血。出院时他把「药一吃，饭必须吃」这句话连着念了两遍。",
       "patient_line": "大夫，我服了。以后药一吃，饭必须吃，我说到做到。",
@@ -645,7 +645,7 @@
     "B": {
       "code": "B",
       "label": "延误",
-      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(HR < 100 && trust >= 0.20)",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(treated && HR <= 105)",
       "title": "血糖上来了，人还没稳",
       "narration": "糖是给了，血糖也回到 4.2 mmol/L，可你没让他吃东西，也没提格列本脲的事。四十分钟后他又开始冒冷汗。格列本脲的药效有六到十二个小时，一次 15 g 糖根本追不上它。",
       "patient_line": "大夫……我怎么又出汗了？刚才不是好了吗？",

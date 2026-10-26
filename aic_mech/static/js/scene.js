@@ -684,13 +684,110 @@
       streamConnected=false;ws?.close();
     }
   },1000);
+  // ===== 结案报告：结局卡 / 复盘知识点 / 情绪终值 =====
+  // 后端字段可能暂未上线（outcome / knowledge_card），也可能是旧版响应：
+  // 缺失时整块不渲染，绝不因为读取 undefined 抛错，报告其余部分照常显示。
+  function reportOutcome(outcome) {
+    if (!outcome || typeof outcome !== 'object' || Array.isArray(outcome)) return null;
+    const code = String(outcome.code || '').trim().toUpperCase().slice(0, 1);
+    const title = String(outcome.title || '').trim();
+    const description = String(outcome.description || '').trim();
+    if (!code && !title && !description) return null;
+    return {code, title, description};
+  }
+  function reportKnowledge(card) {
+    if (!card || typeof card !== 'object' || Array.isArray(card)) return null;
+    const title = String(card.title || '').trim();
+    const raw = card.points || card.items || card.key_points || card.bullets || card.tips || [];
+    const points = (Array.isArray(raw) ? raw : String(raw).split('\n'))
+      .map(point => {
+        if (point && typeof point === 'object') {
+          const heading = String(point.title || point.heading || '').trim();
+          const body = String(point.one_liner || point.description || point.text || '').trim();
+          const pitfall = String(point.pitfall || point.warning || '').trim();
+          return heading || body || pitfall ? {heading, body, pitfall} : null;
+        }
+        const text = String(point == null ? '' : point).trim();
+        return text ? {heading: '', body: text, pitfall: ''} : null;
+      }).filter(Boolean);
+    if (!title && !points.length) return null;
+    return {title, points};
+  }
+  function appendOutcomeCard(body, outcome) {
+    const card = element('section', undefined, `scene-outcome-card${outcome.code ? ` scene-outcome-${outcome.code.toLowerCase()}` : ''}`);
+    const code = element('div', outcome.code || '·', 'scene-outcome-code');
+    const text = element('div', undefined, 'scene-outcome-body');
+    if (outcome.title) text.append(element('h3', outcome.title, 'scene-outcome-title'));
+    if (outcome.description) text.append(element('p', outcome.description, 'scene-outcome-desc'));
+    card.append(code, text); body.append(card);
+  }
+  function appendKnowledgeCard(body, knowledge) {
+    const card = element('section', undefined, 'scene-knowledge-card');
+    card.append(element('h3', knowledge.title || '复盘知识点', 'scene-knowledge-title'));
+    if (knowledge.points.length) {
+      const list = element('ul', undefined, 'scene-knowledge-list');
+      knowledge.points.forEach(point => {
+        const item = element('li', undefined, 'scene-knowledge-item');
+        if (point.heading) item.append(element('b', point.heading, 'scene-knowledge-item-title'));
+        if (point.body) item.append(element('span', point.body, 'scene-knowledge-item-body'));
+        if (point.pitfall) item.append(element('span', point.pitfall, 'scene-knowledge-item-pitfall'));
+        list.append(item);
+      });
+      card.append(list);
+    }
+    body.append(card);
+  }
+  function finaleValues(source) {
+    const pick = (...keys) => {
+      if (!source || typeof source !== 'object') return null;
+      for (const key of keys) {
+        const raw = source[key];
+        if (raw == null || raw === '') continue;
+        const number = Number(raw);
+        if (!Number.isFinite(number)) continue;
+        return Math.max(0, Math.min(1, number > 1 ? number / 100 : number));
+      }
+      return null;
+    };
+    return {
+      trust: pick('trust_level', 'patient_trust', 'trust'),
+      patient_anxiety: pick('patient_anxiety'),
+      family_anxiety: pick('family_anxiety')
+    };
+  }
+  function appendEmotionFinale(body, data) {
+    // 结案响应优先；没有就回落到会话快照（/workspace 与 WS 帧同源），仍缺则整块隐藏。
+    const live = finaleValues(data), cached = finaleValues(snapshot);
+    const rows = [
+      ['信任度', live.trust ?? cached.trust, 'scene-finale-trust'],
+      ['患者焦虑', live.patient_anxiety ?? cached.patient_anxiety, 'scene-finale-anxiety'],
+      ['家属焦虑', live.family_anxiety ?? cached.family_anxiety, 'scene-finale-family']
+    ].filter(([, value]) => value != null);
+    if (!rows.length) return;
+    const card = element('section', undefined, 'scene-emotion-finale');
+    card.append(element('h3', '结案时情绪终值', 'scene-finale-title'));
+    const grid = element('div', undefined, 'scene-finale-grid');
+    rows.forEach(([label, value, cls]) => {
+      const item = element('div', undefined, `scene-finale-item ${cls}`);
+      item.append(element('span', label, 'scene-finale-label'),
+        element('b', `${Math.round(value * 100)}%`, 'scene-finale-value'));
+      grid.append(item);
+    });
+    card.append(grid, element('p', '取结案时刻的会话状态，用于复盘沟通效果。', 'scene-footnote'));
+    body.append(card);
+  }
   function renderAssessment(data) {
     const body=openDialog('OSCE 临床思维训练报告');
+    const outcome=reportOutcome(data.outcome || data.assessment?.outcome);
+    if(outcome)appendOutcomeCard(body,outcome);
     const metrics=element('div',undefined,'scene-metrics');
     [['训练总分',`${data.total_score} / 100`],['拓扑相似度',`${Math.round(data.topological_similarity*100)}%`],['图编辑距离',data.ged_distance]].forEach(([label,val])=>{const d=element('div');d.append(element('small',label),element('b',val));metrics.append(d);});body.append(metrics);
+    appendEmotionFinale(body, data);
     const table=document.createElement('table');Object.entries(data.radar_scores).forEach(([key,val])=>{const tr=table.insertRow();tr.insertCell().textContent=({critical_first_aid:'急救处置力',diagnostic_accuracy:'确诊决策度',differential_thinking:'鉴别思维',safety_awareness:'安全意识',physician_patient_comm:'医患沟通',clinical_efficiency:'临床效率'})[key]||key;tr.insertCell().textContent=`${val} / 100`;});body.append(table);
     body.append(element('h3','复盘反馈'));
     [...data.fatal_errors,...data.clinical_feedback].forEach(t=>body.append(element('p',t)));
+    const knowledge=reportKnowledge(data.knowledge_card || data.assessment?.knowledge_card || data.knowledge);
+    if(knowledge)appendKnowledgeCard(body,knowledge);
     const steps=document.createElement('details');steps.append(element('summary',`操作时间线（${data.action_sequence_summary.length} 项）`));data.action_sequence_summary.forEach((a,i)=>steps.append(element('p',`${i+1}. ${a.content}`)));body.append(steps);
     const actions=element('div',undefined,'scene-actions');const download=element('button','导出 JSON 报告');download.onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`ClinMind-${sessionId}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};const next=element('button','开始下一次训练','secondary');next.onclick=()=>startNew();actions.append(download,next);body.append(actions,element('p','此报告由演示病例与规则评分生成，用于临床思维教学模拟。','scene-footnote'));
   }

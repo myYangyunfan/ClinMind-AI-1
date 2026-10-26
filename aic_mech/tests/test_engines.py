@@ -372,6 +372,76 @@ def test_api_full_flow():
     assert "comparison_dag" in eval_data
 
 
+def test_guardrail_routes_every_authored_exam_option():
+    """病例 JSON 里写的每个 exam_options 都必须能开出报告。
+
+    体查路由曾只认胸痛病例的 8 个器官分支，五个教学病例自带的床旁查体
+    （鼻咽部视诊、颈部淋巴结触诊、腹部查体……31 项）数据在 JSON 里躺着，
+    点了却回「未配置」。这里按病例逐个断言 name 能开出且 exam_id 对得上，
+    未命中的乱写项仍必须回落到防幻觉护栏。
+    """
+    import json
+    from pathlib import Path
+
+    data_dir = Path(__file__).resolve().parent.parent / "app" / "data"
+    case_files = sorted((data_dir / "cases").glob("*.json")) + [data_dir / "case_chest_pain.json"]
+    checked = 0
+    cases = 0
+    for case_file in case_files:
+        payload = json.loads(case_file.read_text(encoding="utf-8"))
+        options = payload.get("exam_options") or []
+        if not options:
+            continue
+        cases += 1
+        guard = GuardrailEngine(case_file)
+        for option in options:
+            matched, report, message = guard.route_physical_exam(option["name"])
+            assert matched is True, f"{case_file.name} 的体查【{option['name']}】点不出来"
+            assert isinstance(report, dict) and report, f"{case_file.name}【{option['name']}】没有报告体"
+            assert report.get("exam_id") == option["exam_id"], (
+                f"{case_file.name}【{option['name']}】路由到了 {report.get('exam_id')}"
+                f"，应为 {option['exam_id']}"
+            )
+            # 数据层开出的报告必须自报项目名；胸痛病例的旧器官分支有各自的
+            # 标题（如「心脏查体与瓣膜听诊」），其文本由既有用例锁定，不在此改。
+            if "查体所见：" in message:
+                assert option["name"] in message, f"{case_file.name}【{option['name']}】回报缺少项目名"
+            if option.get("duration_seconds") is not None:
+                assert report.get("duration_seconds") == option["duration_seconds"], (
+                    f"{case_file.name}【{option['name']}】耗时未带出"
+                )
+            checked += 1
+    print(f"  exam_options 命中 {checked} 项 / {cases} 个病例")
+    assert cases >= 6, f"只有 {cases} 个病例带 exam_options，病例库可能没读全"
+    assert checked >= 31, f"只命中 {checked} 个体查项"
+
+
+def test_physical_exam_unmatched_still_refused_and_general_exam_kept():
+    """未命中的乱写体查项仍走防幻觉护栏；泛问「查体」仍走旧的整例回报。"""
+    import json
+    from pathlib import Path
+
+    data_dir = Path(__file__).resolve().parent.parent / "app" / "data"
+    chest = GuardrailEngine(data_dir / "case_chest_pain.json")
+    matched, report, message = chest.route_physical_exam("随便看看舌苔颜色")
+    assert matched is False and report is None
+    assert "拒绝编造" in message
+
+    cold_path = data_dir / "cases" / "case_gam_001_common_cold.json"
+    cold = GuardrailEngine(cold_path)
+    matched, report, message = cold.route_physical_exam("随便看看舌苔颜色")
+    assert matched is False and report is None
+    assert "拒绝编造" in message
+
+    # 泛问「查体」时，若病例自带覆盖它的单项（感冒病例的「一般情况与体温」），
+    # 走数据层单项；否则仍回到旧的整例 general 回报（此处只锁前者不被退回 blob）。
+    matched, report, message = cold.route_physical_exam("请做一次全身查体")
+    assert matched is True and isinstance(report, dict)
+    authored = {o["exam_id"] for o in json.loads(cold_path.read_text(encoding="utf-8"))["exam_options"]}
+    assert report.get("exam_id") in authored
+    assert "查体所见：" in message
+
+
 if __name__ == "__main__":
     import sys
     test_functions = [
@@ -399,4 +469,82 @@ if __name__ == "__main__":
         sys.exit(1)
     else:
         print("🎉 ALL TESTS PASSED SUCCESSFULLY!")
+
+
+# ================= 6. 人设与病例校验（D-32 / D-27） =================
+
+def test_persona_titles_follow_case_profile():
+    """K5/D-32：每个病例的患者/家属抬头来自它自己的 patient_profile，不串戏。"""
+    from app.core.case_repository import CaseRepository
+
+    repo = CaseRepository()
+    names = []
+    for case_id in repo.ids():
+        data = repo.require(case_id)
+        profile = data.get("patient_profile") or {}
+        name = str(profile.get("name") or "").strip()
+        title = AgentEngine(case_data=data)._patient_role_title()
+        assert name, f"{case_id} 缺少 patient_profile.name"
+        assert name in title, f"{case_id} 的患者抬头没带上本病例姓名：{title}"
+        names.append(name)
+        family_title = AgentEngine(case_data=data)._family_role_title()
+        companion = str(profile.get("family_companion") or "")
+        relation = companion.split("（")[0].split("(")[0].strip()
+        if relation:
+            assert relation in family_title, f"{case_id} 的家属抬头没带上陪同关系：{family_title}"
+
+    # 交叉污染：任何病例的抬头里都不该出现别的病例患者姓名
+    for case_id in repo.ids():
+        data = repo.require(case_id)
+        own = str((data.get("patient_profile") or {}).get("name") or "")
+        title = AgentEngine(case_data=data)._patient_role_title()
+        for other in names:
+            if other != own:
+                assert other not in title, f"{case_id} 的抬头串到了别的病例：{title}"
+
+    # 裸构造（无病例）必须保持旧文案
+    bare = AgentEngine()
+    assert bare._patient_role_title() == "患者 孙建国 (52岁)"
+    assert bare._family_role_title() == "家属（妻子李秀梅）"
+    print(f"  persona ok: {len(names)} 个病例抬头互不串戏")
+
+
+def test_case_validation_strict_mode_raises_and_reports():
+    """K6/D-27：坏病例默认档留痕跳过，严格档拒绝启动。"""
+    import json
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    import config
+    from app.core.case_repository import CaseRepository, CaseValidationError
+
+    original_strict = getattr(config, "CASE_VALIDATION_STRICT", False)
+    tmp_dir = Path(tempfile.mkdtemp(prefix="clinmind_case_"))
+    try:
+        (tmp_dir / "cases").mkdir()
+        (tmp_dir / "case_chest_pain.json").write_text(
+            json.dumps({"case_id": "case_chest_pain_001", "title": "胸痛"}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        (tmp_dir / "cases" / "case_broken.json").write_text(
+            json.dumps({"title": "缺 case_id 的坏病例"}, ensure_ascii=False), encoding="utf-8"
+        )
+
+        config.CASE_VALIDATION_STRICT = False
+        repo = CaseRepository(data_dir=tmp_dir)
+        assert repo.ids() == ["case_chest_pain_001"], repo.ids()
+        assert len(repo.warnings) == 1 and "case_broken.json" in repo.warnings[0], repo.warnings
+
+        config.CASE_VALIDATION_STRICT = True
+        try:
+            CaseRepository(data_dir=tmp_dir)
+        except CaseValidationError as exc:
+            assert "case_broken.json" in str(exc), str(exc)
+        else:
+            raise AssertionError("严格档没有拒绝坏病例")
+    finally:
+        config.CASE_VALIDATION_STRICT = original_strict
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    print("  case validation ok: 默认档留痕跳过 / 严格档抛错")
 

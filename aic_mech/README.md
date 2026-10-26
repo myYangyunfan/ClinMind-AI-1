@@ -77,7 +77,7 @@ aic_mech/
 │       ├── scene.js                 # 双页共享交互层：场景、监护、接诊记录、报告、配置
 │       └── audio_alerts.js          # Web Audio 监护仪蜂鸣与危急值警报 (双页共用)
 │
-├── tests/                           # 自动化测试套件 (53 项，语句覆盖率 56.3%)
+├── tests/                           # 自动化测试套件 (161 项，语句覆盖率 88.5%)
 │   ├── test_engines.py              # 核心引擎功能自检
 │   ├── test_e2e_edge_cases.py       # 极限边界、熔断致死与并发用例
 │   ├── test_ai_native_capabilities.py # 多智能体原生能力用例
@@ -121,7 +121,7 @@ python main.py
 ```bash
 python tests/run_all_tests.py
 ```
-*(将自动执行 36 项自动化测试用例，并输出模块覆盖率报告。预期结论：36 Passed, 0 Failed)*
+*(将自动执行 161 项自动化测试用例，并输出模块覆盖率报告。预期结论：161 Passed, 0 Failed)*
 
 ---
 

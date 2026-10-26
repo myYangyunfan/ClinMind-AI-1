@@ -131,3 +131,6 @@ class EvaluationResponse(BaseModel):
     action_sequence_summary: List[Dict[str, Any]] = Field(default_factory=list)
     comparison_dag: Dict[str, Any] = Field(default_factory=dict)
     assessment: Optional[OSCEAssessment] = None
+    # P3 结局通道：病例 outcomes[] 命中的结局（A/B/C/D）与病例自带知识卡。
+    outcome: Optional[Dict[str, Any]] = None
+    knowledge_card: Optional[Dict[str, Any]] = None

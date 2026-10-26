@@ -648,7 +648,7 @@
     "A": {
       "code": "A",
       "label": "治愈/稳定",
-      "condition": "!has_red_line && HR < 100 && trust >= 0.20",
+      "condition": "!has_red_line && treated && HR < 100",
       "title": "阑尾下线，人还在线",
       "narration": "从进门到进手术室一共 96 分钟。腹腔镜下看到阑尾已经化脓但还没穿孔，断端处理得很干净。术后第一天他扶着输液架在走廊里走了两圈，手机架在支架上开着评审会。他说：需求可以延期，阑尾不行。",
       "patient_line": "大夫，我这回真服了——阑尾说下线就下线。",
@@ -664,7 +664,7 @@
     "B": {
       "code": "B",
       "label": "延误",
-      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(HR < 100 && trust >= 0.20)",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(treated && HR < 100)",
       "title": "等一张 CT，等来一个穿孔",
       "narration": "超声 300 秒就给了答案，你却坚持等 CT 的 1200 秒。等图像回来时，右下腹的压痛已经从局部蔓延到全腹，反跳痛更明显了。手术还是做了，只是从「早期化脓」变成了「穿孔伴局限性腹膜炎」，住院日多了四天。",
       "patient_line": "大夫，怎么越等越疼了？现在整个肚子都疼。",

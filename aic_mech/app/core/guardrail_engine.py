@@ -20,6 +20,7 @@ class GuardrailEngine:
         self.physical_findings = self.case_data.get("physical_exam_findings", {})
         self.lab_reports = self.case_data.get("lab_and_imaging_reports", {})
         self.lab_panels = [p for p in (self.case_data.get("lab_panels") or []) if isinstance(p, dict)]
+        self.exam_options = [x for x in (self.case_data.get("exam_options") or []) if isinstance(x, dict)]
 
     def _route_by_panel(self, order_name: str) -> Optional[Tuple[bool, Dict[str, Any], str]]:
         """Route a lab/imaging order against the case's own `lab_panels[].alias`.
@@ -66,6 +67,76 @@ class GuardrailEngine:
         return True, rep, "\n".join(lines)
 
     @staticmethod
+    def _enrich_finding(finding: Any, meta: Dict[str, Any]) -> Any:
+        """Attach the authored ``exam_options`` identity to a legacy finding.
+
+        The chest case's organ branches predate ``exam_options`` and return
+        their own dicts; a downstream consumer still wants ``exam_id`` /
+        ``duration_seconds`` / ``required`` so it can key reports uniformly.
+        Only adds keys — never overwrites what the branch already authored.
+        """
+        if not isinstance(finding, dict) or not meta:
+            return finding
+        enriched = dict(finding)
+        for key in ("exam_id", "duration_seconds", "required", "clinical_point"):
+            if key not in enriched and meta.get(key) is not None:
+                enriched[key] = meta[key]
+        return enriched
+
+    def _route_by_exam_option(self, query: str) -> Optional[Tuple[bool, Dict[str, Any], str]]:
+        """Route a physical exam against the case's own ``exam_options[]``.
+
+        The organ-by-organ branches below are wired to the chest-pain case and
+        the catalogue cases only carried a single ``general`` blob, so the five
+        authored bedsides exams of each teaching case were never reachable: the
+        data sat in the JSON while the engine answered "not configured". Here
+        the case file is the single source of truth. Matching mirrors
+        ``_route_by_panel``: whitespace-insensitive, longest keyword wins, and
+        ``name`` doubles as an alias so an exact title always resolves.
+        """
+        name = "".join(str(query or "").lower().split())
+        if not name or not self.exam_options:
+            return None
+        best: Optional[Dict[str, Any]] = None
+        best_len = 0
+        for option in self.exam_options:
+            keys = list(option.get("match_keywords") or []) + [option.get("name") or ""]
+            for alias in keys:
+                key = "".join(str(alias).lower().split())
+                if key and key in name and len(key) > best_len:
+                    best, best_len = option, len(key)
+        if best is None:
+            return None
+
+        findings = best.get("findings")
+        abnormal = bool(best.get("is_abnormal"))
+        if isinstance(findings, dict):
+            primary = "abnormal" if abnormal else "normal"
+            secondary = "normal" if abnormal else "abnormal"
+            body = findings.get(primary) or findings.get(secondary) or ""
+        else:
+            body = str(findings or "")
+        body = str(body)
+        rep: Dict[str, Any] = {
+            "item_name": best.get("name") or "",
+            "name": best.get("name") or "",
+            "exam_id": best.get("exam_id"),
+            "findings": body,
+            "conclusion": body,
+            "is_abnormal": abnormal,
+            "duration_seconds": best.get("duration_seconds"),
+            "required": bool(best.get("required")),
+            "clinical_point": best.get("clinical_point", ""),
+            "modality": "EXAM",
+        }
+        lines = [f"【{rep['item_name']}】", f"查体所见：{body}"]
+        if rep["clinical_point"]:
+            lines.append(f"临床要点：{rep['clinical_point']}")
+        if rep["duration_seconds"] is not None:
+            lines.append(f"操作耗时：{rep['duration_seconds']} 秒")
+        return True, rep, "\n".join(lines)
+
+    @staticmethod
     def _text(value: Any) -> str:
         """Render either the chest case's structured finding or a generic one."""
         if isinstance(value, str):
@@ -87,17 +158,22 @@ class GuardrailEngine:
         Returns: (matched, report_dict, feedback_message)
         """
         q = query.strip().lower()
+        authored = self._route_by_exam_option(query)
+        meta = authored[1] if authored is not None else {}
 
         if isinstance(self.physical_findings, dict) and "general" in self.physical_findings:
             # Catalogue cases store a concise general exam instead of the
             # chest case's named organ findings.  Return only those authored
             # values rather than inventing a normal/abnormal result.
+            # 病例自带 exam_options 时优先开单项体查（数据在 JSON 里，就该被点到）。
+            if authored is not None:
+                return authored
             if any(k in q for k in ["查体", "体查", "全身", "一般", "咽", "肺", "腹", "听诊", "视诊", "触诊"]):
                 general = self.physical_findings.get("general", "")
                 note = self.physical_findings.get("vitals_note", "")
                 finding = {"findings": general, "vitals_note": note}
                 msg = f"【病例查体回报】\n{general}" + (f"\n生命体征补充：{note}" if note else "")
-                return True, finding, msg
+                return True, self._enrich_finding(finding, meta), msg
 
         # 1. Bilateral Upper-Arm Blood Pressure (Critical Gold Node N5)
         # 裸关键词"双侧"会误吞其他部位的查体（如双侧瞳孔、双下肢血压），
@@ -113,7 +189,7 @@ class GuardrailEngine:
                 f"测量结论：{finding.get('difference', '')}\n"
                 f"临床解析：{finding.get('interpretation', '')}"
             )
-            return True, finding, msg
+            return True, self._enrich_finding(finding, meta), msg
 
         # 2. Heart Auscultation & Valve Murmurs (Gold Node N6)
         if any(k in q for k in ["心脏听诊", "心音", "杂音", "瓣膜", "主动脉瓣", "叹气样", "泼水样", "听心脏"]):
@@ -123,31 +199,35 @@ class GuardrailEngine:
                 f"听诊所见：{finding.get('findings', '')}\n"
                 f"临床意义：{finding.get('interpretation', '')}"
             )
-            return True, finding, msg
+            return True, self._enrich_finding(finding, meta), msg
 
         # 3. Peripheral Pulses
         if any(k in q for k in ["脉搏", "桡动脉", "股动脉", "足背动脉", "血管征", "搏动"]):
             finding = self.physical_findings.get("peripheral_pulses", {}) if isinstance(self.physical_findings, dict) else {}
             msg = f"【周围血管搏动查体】\n{finding.get('findings', '')}"
-            return True, finding, msg
+            return True, self._enrich_finding(finding, meta), msg
 
         # 4. Lung Auscultation
         if any(k in q for k in ["肺", "呼吸音", "啰音", "双肺听诊", "湿啰音"]):
             finding = self.physical_findings.get("lung_auscultation", {}) if isinstance(self.physical_findings, dict) else {}
             msg = f"【双肺听诊】\n{finding.get('findings', '')}"
-            return True, finding, msg
+            return True, self._enrich_finding(finding, meta), msg
 
         # 5. Abdominal Exam
         if any(k in q for k in ["腹部", "压痛", "反跳痛", "搏动性包块", "触诊腹部"]):
             finding = self.physical_findings.get("abdomen_exam", {}) if isinstance(self.physical_findings, dict) else {}
             msg = f"【腹部查体】\n{finding.get('findings', '')}"
-            return True, finding, msg
+            return True, self._enrich_finding(finding, meta), msg
 
         # 6. Neurological Exam
         if any(k in q for k in ["神经", "瞳孔", "病理征", "巴氏征", "肌力", "脑膜刺激征"]):
             finding = self.physical_findings.get("neuro_exam", {}) if isinstance(self.physical_findings, dict) else {}
             msg = f"【神经系统快速查体】\n{finding.get('findings', '')}"
-            return True, finding, msg
+            return True, self._enrich_finding(finding, meta), msg
+
+        # 7. Case-authored exam_options (数据层兜底，胸痛病例的 1-6 分支优先)
+        if authored is not None:
+            return authored
 
         # Generic physical examination fallback
         return False, None, "本病例未配置该项查体的确定性结果（防幻觉护栏拒绝编造查体所见）。建议进行针对性专科查体（如双上肢血压、心脏瓣膜听诊）。"

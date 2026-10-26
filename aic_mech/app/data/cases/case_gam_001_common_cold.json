@@ -612,7 +612,7 @@
     "A": {
       "code": "A",
       "label": "治愈/稳定",
-      "condition": "!has_red_line && HR < 95 && SpO2 >= 95 && trust >= 0.20",
+      "condition": "!has_red_line && treated && HR < 95 && SpO2 >= 95",
       "title": "对症宣教，五天痊愈",
       "narration": "体温在两天内回到正常，鼻涕从清水样转为黏稠、再慢慢止住。你没有给他开一片抗生素，也没有让他挂一瓶没有指征的输液，只是把「病毒性感冒五到七天自己会好」这件事讲进了他心里。第四天他爱人打电话来，说他又去带队跳舞了。",
       "patient_line": "大夫，我记住了——感冒是病毒闹的，吃头孢不管用。",
@@ -628,7 +628,7 @@
     "B": {
       "code": "B",
       "label": "延误",
-      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(HR < 95 && SpO2 >= 95 && trust >= 0.20)",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(treated && HR < 95 && SpO2 >= 95)",
       "title": "药没开错，话没说透",
       "narration": "烧退了，人也精神了，可临走时他还在问「那我这嗓子到底要不要吃头孢」。你把该开的药开对了，却没把「为什么不用抗生素」讲清楚。三天后他果然在药店自己买了一盒头孢，吃了五天，什么也没治好，只多了一次耐药风险。",
       "patient_line": "药是吃了，可我心里还是没底啊大夫。",
