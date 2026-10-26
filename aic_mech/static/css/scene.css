@@ -167,7 +167,7 @@ html,body{background:#c6d0bd}body{display:flex;align-items:center;justify-conten
 /* 网格只有一行：行高必须锁在容器内，否则多出的病历区会把行撑高、压到页脚上 */
 .work-grid{grid-template-rows:minmax(0,1fr)}
 .scene-record-area{position:absolute;z-index:6;width:300px;font-family:"Microsoft YaHei",sans-serif}
-.reception .scene-record-area{left:498px;top:352px}
+.reception .scene-record-area{left:1178px;top:604px}
 .workstation .scene-record-area{position:static;width:auto;flex-shrink:0}
 .scene-record-details{background:var(--scene-panel-bg);border:1px solid var(--scene-panel-border);border-radius:12px;box-shadow:var(--scene-panel-shadow);overflow:hidden}
 .scene-record-summary{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:11px;color:var(--scene-panel-ink);list-style:none}
