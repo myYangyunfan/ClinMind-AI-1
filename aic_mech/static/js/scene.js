@@ -36,6 +36,23 @@
   let reconnectCount = 0, streamConnected = false, lastTelemetryAt = 0, lastAlarmAt = -Infinity;
   let lastWaveAt = null, heartPhase = 0, breathPhase = 0;
   const monitorState = {hr: 108, spo2: 96, sbp: 195, dbp: 115, rr: 22, pain: 9, patientState: 'S0_STABLE'};
+  // 医患状态面板：6 个 WS 字段可能暂时缺失，缺字段时保持上一次数值，不崩、不归零。
+  const EMOTION_CHANNELS = [
+    {key: 'trust', label: '信任度', trendKey: 'trust_trend'},
+    {key: 'patient_anxiety', label: '患者焦虑', trendKey: 'anxiety_trend'},
+    {key: 'family_anxiety', label: '家属焦虑', trendKey: 'anxiety_trend'}
+  ];
+  const TREND_WINDOW_MS = 30000, TREND_EPS = 0.02, EMOTION_TICK_MS = 5000, DISCLAIMER_KEY = 'clinmind-disclaimer-ack';
+  const state = {
+    ended: false,
+    refused: false,
+    emotion: {trust: 0.40, patient_anxiety: 0.60, family_anxiety: 0.65},
+    trendHint: {trust: null, patient_anxiety: null, family_anxiety: null},
+    trendValue: {trust: 0, patient_anxiety: 0, family_anxiety: 0},
+    history: {trust: [], patient_anxiety: [], family_anxiety: []},
+    lastSampleAt: 0
+  };
+  let emotionTimer;
   const waveSvg = $('.wave-svg');
   const waveLines = waveSvg ? $$('polyline', waveSvg) : [];
   if (waveSvg) {
@@ -92,6 +109,126 @@
     return body;
   }
   function element(tag, text, className) { const el = document.createElement(tag); if (text !== undefined) el.textContent = text; if (className) el.className = className; return el; }
+  function ratio(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return null;
+    return Math.max(0, Math.min(1, number > 1 ? number / 100 : number));
+  }
+  function readEmotion(data) {
+    if (!data) return;
+    const values = {trust: data.trust_level ?? data.trust, patient_anxiety: data.patient_anxiety, family_anxiety: data.family_anxiety};
+    for (const {key, trendKey} of EMOTION_CHANNELS) {
+      const value = ratio(values[key]);
+      if (value !== null) state.emotion[key] = value;
+      const hint = Number(data[trendKey]);
+      state.trendHint[key] = hint === 1 || hint === -1 || hint === 0 ? hint : null;
+    }
+  }
+  function sampleEmotion(now) {
+    if (now - state.lastSampleAt < EMOTION_TICK_MS - 500) return;
+    state.lastSampleAt = now;
+    for (const {key} of EMOTION_CHANNELS) {
+      const buffer = state.history[key];
+      buffer.push({t: now, v: state.emotion[key]});
+      while (buffer.length > 1 && now - buffer[0].t > TREND_WINDOW_MS) buffer.shift();
+    }
+  }
+  function localTrend(key, now) {
+    const buffer = state.history[key];
+    if (!buffer.length || now - buffer[0].t < TREND_WINDOW_MS) return null;
+    const delta = state.emotion[key] - buffer[0].v;
+    if (delta > TREND_EPS) return 1;
+    if (delta < -TREND_EPS) return -1;
+    return 0;
+  }
+  function bandClass(channel, value) {
+    if (channel === 'trust') return value < 0.2 ? 'scene-band-low' : '';
+    if (value > 0.9) return 'scene-band-critical';
+    if (value > 0.8) return 'scene-band-high';
+    return '';
+  }
+  function renderEmotionPanel(source) {
+    readEmotion(source);
+    const panel = $('#emotion-panel');
+    if (!panel) return;
+    const now = Date.now();
+    sampleEmotion(now);
+    for (const {key, label} of EMOTION_CHANNELS) {
+      const row = $(`[data-channel="${key}"]`, panel);
+      if (!row) continue;
+      const value = state.emotion[key];
+      const percent = Math.round(value * 100);
+      const fill = $('.scene-emotion-fill', row);
+      if (fill) fill.style.width = `${(value * 100).toFixed(1)}%`;
+      row.classList.remove('scene-band-low', 'scene-band-high', 'scene-band-critical');
+      const band = bandClass(key, value);
+      if (band) row.classList.add(band);
+      const number = $('.scene-emotion-value', row);
+      if (number && number.dataset.percent !== String(percent)) {
+        number.textContent = `${percent}%`;
+        number.dataset.percent = String(percent);
+      }
+      const trendElement = $('.scene-emotion-trend', row);
+      if (trendElement) {
+        const local = localTrend(key, now);
+        const hint = state.trendHint[key];
+        const trend = hint !== null ? hint : (local ?? 0);
+        state.trendValue[key] = trend;
+        trendElement.textContent = trend > 0 ? '↑' : trend < 0 ? '↓' : '→';
+        trendElement.classList.toggle('scene-trend-shown', hint !== null || local !== null);
+        trendElement.classList.toggle('scene-trend-good', trend !== 0 && (key === 'trust' ? trend > 0 : trend < 0));
+        trendElement.classList.toggle('scene-trend-bad', trend !== 0 && (key === 'trust' ? trend < 0 : trend > 0));
+        trendElement.setAttribute('aria-label', `${label}趋势${trend > 0 ? '上升' : trend < 0 ? '下降' : '持平'}`);
+      }
+    }
+    applyRefusal(source);
+    applyEndState();
+  }
+  function applyRefusal(data) {
+    const panel = $('#emotion-panel');
+    if (!panel) return;
+    if (data?.refuse === true) {
+      if (!state.refused) toast('患者当前拒绝配合，请先安抚情绪后继续问诊。', true);
+      state.refused = true;
+    } else if (state.emotion.family_anxiety < 0.85) {
+      state.refused = false;
+    }
+    panel.classList.toggle('scene-refuse', state.refused);
+    $$('.scene-emotion-row', panel).forEach(row => row.classList.toggle('scene-refusing', state.refused));
+    const banner = $('.scene-refusal-banner', panel);
+    if (banner) banner.hidden = !state.refused;
+  }
+  function applyEndState() {
+    const reason = snapshot?.terminal_reason;
+    const ended = !!snapshot?.is_finished || (typeof reason === 'string' && reason.trim() !== '');
+    state.ended = ended;
+    document.body.classList.toggle('is-finished', !!snapshot?.is_finished);
+    document.body.classList.toggle('scene-ended', ended);
+    input.disabled = ended;
+    $$('.dock-tab,.tab,.inquiry-button,.send,.next-btn,.end-btn').forEach(node => node.setAttribute('aria-disabled', String(ended)));
+    const tick = $('.scene-emotion-tick');
+    if (tick) tick.textContent = ended ? '已结束 · 操作冻结' : '5 秒刷新';
+  }
+  function startEmotionTicker() {
+    clearInterval(emotionTimer);
+    renderEmotionPanel(snapshot || null);
+    emotionTimer = setInterval(() => {
+      renderEmotionPanel(snapshot || null);
+      if (!snapshot && sessionId) refresh().catch(() => {});
+    }, EMOTION_TICK_MS);
+  }
+  function ackDisclaimer() {
+    sessionStorage.setItem(DISCLAIMER_KEY, '1');
+    $('.scene-disclaimer-modal')?.close();
+  }
+  function ensureDisclaimer() {
+    const modal = $('.scene-disclaimer-modal');
+    if (!modal) return;
+    modal.addEventListener('cancel', event => event.preventDefault());
+    $('.scene-disclaimer-ack', modal)?.addEventListener('click', ackDisclaimer);
+    if (sessionStorage.getItem(DISCLAIMER_KEY) === '1') return;
+    if (!modal.open) modal.showModal();
+  }
   function showLog() {
     const body = $('.scene-log-body', log); body.replaceChildren();
     const messages = snapshot?.dialogues || [];
@@ -222,10 +359,15 @@
     const timer = $('.timer'); if (timer) timer.textContent = `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
     const trust = Math.round((snapshot.trust_level ?? .4)*100), anxiety = Math.round((snapshot.family_anxiety ?? .65)*100);
     [['.status-tag.trust',trust],['.status-tag.anxiety',anxiety]].forEach(([s,val]) => { const el=$(s); if(el){$('strong',el).textContent=`${val}%`;$('.bar span',el).style.width=`${val}%`;}});
-    $$('.relation').forEach((el,i) => { const val=i===0?trust:anxiety; $('b',el).textContent=`${val}%`;$('.line span',el).style.width=`${val}%`; });
-    alert.textContent = snapshot.rupture_countdown != null ? `模拟危急状态 · ${snapshot.patient_state} · 倒计时 ${snapshot.rupture_countdown} 秒` : '';
-    document.body.classList.toggle('is-finished',!!snapshot.is_finished);
-    input.disabled = !!snapshot.is_finished;
+    [[$('.relation:not(.anxious)'), trust], [$('.relation.anxious'), anxiety]].forEach(([el, val]) => {
+      if (!el) return;
+      const label = $('b', el), bar = $('.line span', el);
+      if (label) label.textContent = `${val}%`;
+      if (bar) bar.style.width = `${val}%`;
+    });
+    renderEmotionPanel(snapshot);
+    const criticalState = snapshot.rupture_countdown != null || (snapshot.patient_state && snapshot.patient_state !== 'S0_STABLE');
+    alert.textContent = criticalState ? `模拟危急状态 · ${snapshot.patient_state || '生命体征变化'} · 声光报警已触发` : '';
     if (snapshot.is_finished) { const live=$('.live'); if(live) live.textContent='已结案 · 监护冻结'; }
     if (data.spontaneous_dialogues?.length) {
       const existing = new Set((snapshot.dialogues || []).map(m=>`${m.timestamp}:${m.text}`));
@@ -273,6 +415,7 @@
     setTab(tab, false);
   }
   function setTab(i, openQuick = true) {
+    if (state.ended && openQuick) { toast('本次训练已结束，可查看报告或开始下一次训练。'); return; }
     tab = i; $$('.dock-tab,.tab').forEach((el,j) => el.classList.toggle('active', j === i));
     const questions = $('.questions');
     if (questions) {
@@ -305,7 +448,7 @@
   }
   async function execute(content) {
     if (busy || !sessionId) return;
-    if(snapshot?.is_finished){toast('本次训练已结案，可查看报告或开始下一次训练。');return;}
+    if (state.ended) {toast('本次训练已结束，可查看报告或开始下一次训练。');return;}
     busy=true;document.body.classList.add('is-busy');
     try {
       const result=await api('/api/action/execute',{session_id:sessionId,action_type:menu[tab].type,content,params:{}});
@@ -421,22 +564,29 @@
   });
   addEventListener('keydown',e=>{
     const tag=document.activeElement?.tagName;
+    const modalOpen=!!$('.scene-disclaimer-modal')?.open;
     if(e.isComposing||e.ctrlKey||e.metaKey||e.altKey||document.activeElement?.isContentEditable)return;
-    if(e.key==='Escape'&&!dialog.open&&workstation&& !['INPUT','TEXTAREA','SELECT'].includes(tag))location.href='/static/reception.html';
-    if(!workstation && e.key.toLowerCase()==='e' && !dialog.open && !['INPUT','TEXTAREA','SELECT'].includes(tag)) location.href='/static/workstation.html';
-    if(!workstation && /^[1-5]$/.test(e.key) && !dialog.open && !['INPUT','TEXTAREA','SELECT'].includes(tag)) setTab(Number(e.key)-1);
+    if(e.key==='Escape'&&!dialog.open&&!modalOpen&&workstation&& !['INPUT','TEXTAREA','SELECT'].includes(tag))location.href='/static/reception.html';
+    if(!workstation && e.key.toLowerCase()==='e' && !dialog.open && !modalOpen && !['INPUT','TEXTAREA','SELECT'].includes(tag)) location.href='/static/workstation.html';
+    if(!workstation && /^[1-5]$/.test(e.key) && !dialog.open && !modalOpen && !['INPUT','TEXTAREA','SELECT'].includes(tag)) setTab(Number(e.key)-1);
   });
-  addEventListener('beforeunload',()=>{stopped=true;clearTimeout(reconnectTimer);clearTimeout(speechTimer);clearInterval(staleTimer);ws?.close();});
+  addEventListener('beforeunload',()=>{stopped=true;clearTimeout(reconnectTimer);clearTimeout(speechTimer);clearInterval(staleTimer);clearInterval(emotionTimer);ws?.close();});
   async function initialize() {
     stopped=false;reconnectCount=0;lastAlarmAt=-Infinity;
+    state.ended=false;state.refused=false;state.lastSampleAt=0;
+    for(const key of Object.keys(state.history))state.history[key]=[];
+    for(const key of Object.keys(state.trendHint))state.trendHint[key]=null;
+    document.body.classList.remove('scene-ended','is-finished');
     sessionId=localStorage.getItem('clinmind-game-session');
     if(sessionId){try{await refresh();}catch(e){if(e.status!==404)throw e;sessionId=null;localStorage.removeItem('clinmind-game-session');}}
     if(!sessionId){const caseId=localStorage.getItem('clinmind-case-id') || 'case_chest_pain_001';const data=await api('/api/case/start',{case_id:caseId,student_name:'临床思维训练学员'});sessionId=data.session_id;localStorage.setItem('clinmind-game-session',sessionId);await refresh();}
-    if(workstation)setTab(0);
+    if(workstation)setTab(0,false);
     connect();
   }
   // Keep the visual draft's unknown history consistent with the case engine.
   const history=$('.record-row.history .value');if(history)history.textContent='高血压病史，具体年限与用药待问诊。';
   const familySpeech=$('.speech.family p');if(familySpeech)familySpeech.textContent='他平时有高血压，具体用药情况还需要问他。';
+  ensureDisclaimer();
+  startEmotionTicker();
   initialize().catch(e=>toast(`服务连接失败：${e.message}。请使用 start.cmd 启动后访问页面。`,true));
 })();

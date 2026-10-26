@@ -12,6 +12,94 @@ import config
 router = APIRouter(prefix="/api/action", tags=["Action Execution"])
 
 
+# ================= 情绪事件映射（契约 05 §4） =================
+# 安抚语义：问诊/处置的自由文字命中这些词才算 COMFORT，60 s 冷却由
+# EmotionEngine 记账。刻意不收「止痛/镇痛/控制血压」——那些是处置动作，
+# 不是安抚；把医嘱误记成安抚会让信任度虚高。
+_COMFORT_KEYWORDS = (
+    "安慰", "别紧张", "放松", "别害怕", "别慌", "耐心", "理解",
+    "放心", "我们会", "我们全力救治", "全力救治", "信任我们",
+    "陪着你", "陪您", "会好起来",
+)
+# 「解释检查目的」：体查文字里出现这些词，说明学生在向患者解释而非单纯查体。
+_EXPLAIN_KEYWORDS = ("解释", "说明", "告知", "为什么", "目的", "意义", "必要性")
+
+_QUESTION_KIND_TO_EVENT = {
+    "relevant": "RELEVANT_QUESTION",
+    "relevant_question": "RELEVANT_QUESTION",
+    "切题": "RELEVANT_QUESTION",
+    "repeat": "REPEAT_QUESTION",
+    "repeated": "REPEAT_QUESTION",
+    "duplicate": "REPEAT_QUESTION",
+    "重复": "REPEAT_QUESTION",
+    "irrelevant": "IRRELEVANT_QUESTION",
+    "unrelated": "IRRELEVANT_QUESTION",
+    "off_topic": "IRRELEVANT_QUESTION",
+    "无关": "IRRELEVANT_QUESTION",
+}
+
+
+def _hit(text: str, keywords) -> bool:
+    haystack = (text or "").lower()
+    return any(k in haystack for k in keywords)
+
+
+def _split_inquiry_result(result):
+    """兼容 agent_engine.handle_inquiry 的多种返回形态。
+
+    当前返回 List[DialogueMessage]，还没有切题/重复/无关的判定；若后续改成
+    ``(dialogues, question_kind)``、``{"dialogues": ..., "question_kind": ...}``
+    或带 ``question_kind`` 属性的对象，也能直接取到判定，不必再改这里。
+    拿不到判定时返回 kind=None，由调用方兜底（契约 05 §4：不得瞎猜）。
+    """
+    kind = None
+    dialogues = result
+    if isinstance(result, tuple) and len(result) == 2:
+        first, second = result
+        if isinstance(first, list):
+            dialogues, kind = first, second
+        elif isinstance(second, list):
+            kind, dialogues = first, second
+    elif isinstance(result, dict):
+        dialogues = result.get("dialogues") or result.get("messages") or []
+        kind = result.get("question_kind")
+    else:
+        kind = getattr(result, "question_kind", None)
+        if kind is not None:
+            dialogues = getattr(result, "dialogues", dialogues)
+    if not isinstance(dialogues, list):
+        dialogues = []
+    if isinstance(kind, str):
+        kind = kind.strip().lower() or None
+    return dialogues, kind
+
+
+def _apply_emotion(session, code: str, ctx: Dict[str, Any]) -> bool:
+    """调 EmotionEngine 落一次情绪事件，返回是否真的落账。
+
+    引擎缺席（老会话/未接线的会话）或内部异常时不拖垮动作主流程：
+    诊断与抢救优先，情绪是旁路。
+    """
+    if not code:
+        return False
+    emotion = getattr(session, "emotion", None)
+    if emotion is None:
+        return False
+    try:
+        result = emotion.apply_event(code, ctx)
+    except TypeError:
+        # 引擎实现成 apply_event(code) 也能用（契约里 ctx 为可选）。
+        try:
+            result = emotion.apply_event(code)
+        except Exception:
+            return False
+    except Exception:
+        return False
+    if isinstance(result, dict) and "applied" in result:
+        return bool(result["applied"])
+    return True
+
+
 @router.post("/execute", response_model=ActionResponse)
 def execute_action(req: ActionRequest):
     """Execute a student clinical decision action."""
@@ -35,14 +123,36 @@ def execute_action(req: ActionRequest):
     order_status = "executed"
     feedback_message = ""
 
+    # 情绪事件（契约 05 §4）：分支里定 code，动作执行完统一落账。
+    emotion_code = None
+    emotion_applied = False
+    emotion_ctx: Dict[str, Any] = {}
+    inquiry_kind = None
+
     # ================= 1. INQUIRY (问诊沟通) =================
     if action_type in (ActionType.INQUIRY, "inquiry", "ask"):
-        dialogues = session.agent_engine.handle_inquiry(content, current_state)
+        inquiry_result = session.agent_engine.handle_inquiry(content, current_state)
+        dialogues, inquiry_kind = _split_inquiry_result(inquiry_result)
+        emotion_ctx = {"question_kind": inquiry_kind}
+        if _hit(content, _COMFORT_KEYWORDS):
+            # 安抚语义优先于问诊三分类：学生这句话的疗效来自安抚本身。
+            emotion_code, emotion_applied = "COMFORT", True
+        elif inquiry_kind in _QUESTION_KIND_TO_EVENT:
+            emotion_code, emotion_applied = _QUESTION_KIND_TO_EVENT[inquiry_kind], True
+        else:
+            # 拿不到判定就不猜：按 RELEVANT_QUESTION 兜底落账，但如实回
+            # emotion_applied=false，让上层知道这次判定是缺省的。
+            emotion_code, emotion_applied = "RELEVANT_QUESTION", False
         feedback_message = f"已完成问诊沟通：【{content}】"
 
     # ================= 2. PHYSICAL EXAM (专科体查) =================
     elif action_type in (ActionType.PHYSICAL_EXAM, "physical_exam", "exam"):
         matched, report, msg = session.guardrail_engine.route_physical_exam(content)
+        emotion_ctx = {"item": content, "matched": matched}
+        if _hit(content, _EXPLAIN_KEYWORDS):
+            emotion_code, emotion_applied = "EXPLAIN_EXAM", True
+        else:
+            emotion_code, emotion_applied = "EXAM_CORRECT", True
         feedback_message = msg
         nurse_msg = session.agent_engine.notify_order_dispatched(f"体格检查：{content}")
         dialogues.append(nurse_msg)
@@ -79,6 +189,9 @@ def execute_action(req: ActionRequest):
         matched, report, msg = session.guardrail_engine.route_lab_or_imaging(
             content, session.physiology_engine.get_current_vitals()
         )
+        # 02 §1.3 E05 的触发源就是「检查下单」，每项检查 1 次由引擎记账。
+        emotion_ctx = {"item": content, "matched": matched}
+        emotion_code, emotion_applied = "EXPLAIN_EXAM", True
         feedback_message = msg
         nurse_msg = session.agent_engine.notify_order_dispatched(f"辅助检查开单送检：{content}")
         dialogues.append(nurse_msg)
@@ -129,6 +242,7 @@ def execute_action(req: ActionRequest):
         unit = str(req.params.get("unit", "mg")) if req.params else "mg"
         med_result = session.physiology_engine.apply_medication(content, dose, unit)
 
+        emotion_ctx = {"item": content, "dose": dose, "unit": unit}
         if med_result.get("is_lethal"):
             is_contraindicated = True
             warning_text = med_result.get("message")
@@ -136,14 +250,21 @@ def execute_action(req: ActionRequest):
             # Nurse emergency intercept alarm
             nurse_warn = session.agent_engine.generate_nurse_warning(content)
             dialogues.append(nurse_warn)
+            # 红线：由 physiology 判定致命，情绪层只记账不越权。
+            emotion_code, emotion_applied = "RED_LINE_MED", True
         else:
             feedback_message = med_result.get("message")
             nurse_msg = session.agent_engine.notify_order_dispatched(f"用药：{content} {dose}{unit}")
             dialogues.append(nurse_msg)
+            emotion_code, emotion_applied = "CORRECT_TREATMENT", True
 
     # ================= 5. RESCUE / DISPOSITION (急救与终末转归) =================
     elif action_type in (ActionType.RESCUE_DISPOSITION, "rescue_disposition", "dispo", "rescue"):
         c_lower = content.lower()
+        emotion_ctx = {"item": content}
+        if _hit(content, _COMFORT_KEYWORDS):
+            # E04 的触发源写明是「问诊/处置」，处置里的安抚话同样计入。
+            emotion_code, emotion_applied = "COMFORT", True
         if any(k in c_lower for k in ["吸氧", "双通道", "静脉通路", "监护", "抢救"]):
             feedback_message = "【抢救通道建立】已予鼻导管高流量吸氧，快速开放左右上肢双侧静脉通道，持续多参数心电血压监护！"
             nurse_msg = session.agent_engine.notify_order_dispatched("建立双通道静脉通路与吸氧监护")
@@ -157,6 +278,10 @@ def execute_action(req: ActionRequest):
         elif any(k in c_lower for k in ["知情同意", "病危", "沟通", "交代", "签字"]):
             feedback_message = "【知情同意交代】已向家属详尽交待急性主动脉夹层极高破裂风险，家属李秀梅已含泪签署急诊开胸手术知情同意书及病危通知书。"
             dialogues.extend(session.agent_engine.handle_inquiry("签署知情同意与病危通知", current_state))
+            if emotion_code is None:
+                # 02 §1.3 E12（知情同意/签字）的 delta 已内置在引擎里，且注释
+                # 写明是留给 API 层的；这条支路本身就是判定，不是猜。
+                emotion_code, emotion_applied = "CONSENT", True
 
         elif any(k in c_lower for k in ["cpr", "心肺复苏", "胸外按压", "电除颤", "心包穿刺"]):
             if current_state in [PatientStateEnum.S4_CARDIAC_TAMPONADE, PatientStateEnum.S5_AORTIC_RUPTURE]:
@@ -174,6 +299,19 @@ def execute_action(req: ActionRequest):
     new_state = session.physiology_engine.get_state()
 
     session.agent_engine.observe_action(action_type, content, safe=not is_contraindicated)
+
+    # 情绪事件统一落账（契约 05 §4）：动作已执行完，生理/护理副作用都已生效。
+    # 注意 emotion_applied 只是"判定是否可信"的标志，不能短路掉 apply_event：
+    # 问诊拿不到判定时也要按 RELEVANT_QUESTION 真的落账一次。
+    if emotion_code:
+        emotion_ctx.setdefault("content", content)
+        emotion_ctx.setdefault(
+            "action_type",
+            action_type.value if isinstance(action_type, ActionType) else str(action_type),
+        )
+        emotion_ctx.setdefault("virtual_seconds", session.virtual_seconds)
+        applied_ok = _apply_emotion(session, emotion_code, emotion_ctx)
+        emotion_applied = emotion_applied and applied_ok
 
     if new_state in [PatientStateEnum.S4_CARDIAC_TAMPONADE, PatientStateEnum.S5_AORTIC_RUPTURE]:
         dialogues.append(session.agent_engine.generate_tamponade_alert(vitals.sbp))
@@ -210,5 +348,6 @@ def execute_action(req: ActionRequest):
         vitals=vitals,
         patient_state=new_state,
         warning=warning_text,
-        is_contraindicated=is_contraindicated
+        is_contraindicated=is_contraindicated,
+        emotion_applied=emotion_applied
     )

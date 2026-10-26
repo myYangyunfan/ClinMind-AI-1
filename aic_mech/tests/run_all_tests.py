@@ -178,6 +178,14 @@ def run_all():
     v2_suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_v2_regressions")
     v2_res = unittest.TextTestRunner(verbosity=1).run(v2_suite)
 
+    print("\n[PHASE 6] Executing tests/test_emotion_tick.py (Emotion Engine & Settlement)...")
+    emotion_suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_emotion_tick")
+    emotion_res = unittest.TextTestRunner(verbosity=1).run(emotion_suite)
+
+    print("\n[PHASE 7] Executing tests/test_api_emotion.py (API Emotion Channels)...")
+    api_emotion_suite = unittest.defaultTestLoader.loadTestsFromName("tests.test_api_emotion")
+    api_emotion_res = unittest.TextTestRunner(verbosity=1).run(api_emotion_suite)
+
     sys.settrace(None)
     elapsed = time.time() - start_time
 
@@ -187,7 +195,7 @@ def run_all():
     print("\n" + "=" * 70)
     print("  AUTOMATION TEST RESULTS SUMMARY")
     print("=" * 70)
-    suites = [e2e_res, static_res, session_res, v2_res]
+    suites = [e2e_res, static_res, session_res, v2_res, emotion_res, api_emotion_res]
     total_run = len(te_tests) + sum(r.testsRun for r in suites)
     total_passed = passed_te + sum(r.testsRun - len(r.failures) - len(r.errors) for r in suites)
     total_failed = len(te_tests) - passed_te + int(load_failed) + sum(len(r.failures) + len(r.errors) for r in suites)

@@ -187,6 +187,27 @@ def save_llm_config(provider: str, api_key: str, base_url: str = "", model: str 
 VIRTUAL_TICK_RATE_HZ: float = 1.0  # 1Hz physiology tick
 TIME_ACCELERATION_FACTOR: float = 1.0  # 1.0 = real-time, can accelerate virtual clock
 
+# ---------------------------------------------------------------------------
+# Emotion / relationship engine parameters
+# Frozen by spec/05-P0接口契约.md §1 -- names, types and defaults must match it.
+# ---------------------------------------------------------------------------
+EMOTION_TICK_SECONDS: float = 5.0          # 情绪结算周期（秒）
+EMOTION_TRUST_INIT: float = 0.40           # 信任度初始值
+EMOTION_PATIENT_ANXIETY_INIT: float = 0.50  # 患者焦虑初始值
+EMOTION_FAMILY_ANXIETY_INIT: float = 0.65   # 家属焦虑初始值
+EMOTION_TRUST_TIME_DELTA: float = -0.004     # 每个结算周期信任时间项
+EMOTION_PATIENT_ANXIETY_TIME_DELTA: float = 0.004   # 每个结算周期患者焦虑时间项
+EMOTION_FAMILY_ANXIETY_TIME_DELTA: float = 0.003    # 每个结算周期家属焦虑时间项
+EMOTION_TRUST_TIME_FLOOR: float = 0.15      # 时间项信任下限
+EMOTION_ANXIETY_TIME_CEILING: float = 0.85  # 时间项焦虑上限
+EMOTION_IDLE_EVENT_ENABLED: bool = False    # 空转事件开关（默认关）
+EMOTION_REFUSE_THRESHOLD: float = 0.90      # 拒绝配合阈值
+EMOTION_LEAVE_IMMEDIATE: float = 0.05       # 立即离院阈值
+EMOTION_LEAVE_SUSTAINED: float = 0.10       # 持续离院阈值
+EMOTION_LEAVE_SUSTAINED_SECONDS: int = 60   # 持续离院计时（秒）
+EMOTION_TREND_WINDOW_SECONDS: int = 30      # 趋势箭头窗口（秒）
+EMOTION_UI_HINT_MIN_DELTA: float = 0.005    # UI/日志提示阈值（不影响引擎累计）
+
 # Fatal Red-line Medications (Contraindicated for Stanford Type A Aortic Dissection)
 LETHAL_MEDICATION_KEYWORDS = [
     "aspirin", "阿司匹林",

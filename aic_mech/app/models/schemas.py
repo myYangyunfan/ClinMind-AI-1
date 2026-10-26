@@ -57,6 +57,10 @@ class ActionResponse(BaseModel):
     patient_state: PatientStateEnum
     warning: Optional[str] = None
     is_contraindicated: bool = False
+    # 情绪事件是否真的按 agent_engine 的判定落账（契约 05 §4）。
+    # 问诊拿不到 question_kind 时按 RELEVANT_QUESTION 处理但这里回 False，
+    # 表示"事件已兜底应用，判定是猜的"；其他动作 apply_event 成功即为 True。
+    emotion_applied: bool = False
 
 
 class VitalsStreamPayload(BaseModel):
@@ -67,6 +71,12 @@ class VitalsStreamPayload(BaseModel):
     patient_state: PatientStateEnum
     trust_level: float
     family_anxiety: float
+    # 情绪通道（契约 05 §4）：只增不改，旧字段全部保留
+    patient_anxiety: float = 0.50
+    trust_trend: int = 0
+    anxiety_trend: int = 0
+    refuse: bool = False
+    terminal_reason: Optional[str] = None
     alarms: List[str] = Field(default_factory=list)
     rupture_countdown: Optional[int] = None
     patient_say: Optional[str] = None
@@ -84,7 +94,16 @@ class SessionStateResponse(BaseModel):
     patient_state: PatientStateEnum
     vitals: VitalsVector
     agent_trust: float
+    # DEPRECATED：字段名有历史误导，实际返回的是家属焦虑（family_anxiety）。
+    # 为兼容旧前端保留一个版本，新代码请改用 patient_anxiety / family_anxiety。
     agent_anxiety: float
+    # 情绪通道（契约 05 §4）
+    patient_anxiety: float = 0.50
+    family_anxiety: float = 0.65
+    trust_trend: int = 0
+    anxiety_trend: int = 0
+    refuse: bool = False
+    terminal_reason: Optional[str] = None
     history_actions_count: int
     active_alarms: List[str]
 

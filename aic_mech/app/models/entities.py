@@ -66,8 +66,11 @@ class VitalsVector(BaseModel):
 
 class AgentState(BaseModel):
     """Multi-Agent dynamic mental & workflow state."""
+    # NOTE: 已由 EmotionEngine 接管，写入不再对外生效（见 spec/02 §7 K-03，P1 清理）
     patient_trust: float = Field(default=0.40, ge=0.0, le=1.0, description="Patient compliance score")
+    patient_anxiety: float = Field(default=0.50, ge=0.0, le=1.0, description="Patient anxiety level (0-1), mirrors EmotionEngine")
     patient_pain: int = Field(default=9, ge=0, le=10, description="Patient pain perception")
+    # NOTE: 已由 EmotionEngine 接管，写入不再对外生效（见 spec/02 §7 K-03，P1 清理）
     family_anxiety: float = Field(default=0.65, ge=0.0, le=1.0, description="Family anxiety level")
     family_interrupted_count: int = Field(default=0, description="Family interruption count")
     nurse_orders_queue: List[Dict[str, Any]] = Field(default_factory=list, description="Executing orders")

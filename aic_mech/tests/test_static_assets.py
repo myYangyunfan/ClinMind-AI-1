@@ -114,6 +114,120 @@ class TestStaticAssetsConsistency(unittest.TestCase):
         self.assertIn("playQRSBeep", code)
         self.assertIn("playCriticalAlarm", code)
 
+    def test_emotion_panel_present_on_both_pages(self):
+        """两页都必须有侧边状态面板：三条 [data-channel]（信任/患者焦虑/家属焦虑）。"""
+        for name in PAGES:
+            html = _page(name)
+            self.assertIn('id="emotion-panel"', html, f"{name} 缺少 #emotion-panel")
+            self.assertIn('class="scene-emotion-panel"', html, f"{name} 缺少 scene-emotion-panel")
+            for channel in ("trust", "patient_anxiety", "family_anxiety"):
+                self.assertIn(
+                    f'data-channel="{channel}"', html, f"{name} 缺少 data-channel={channel}"
+                )
+            self.assertEqual(
+                len(re.findall(r'data-channel="', html)), 3, f"{name} 的 [data-channel] 行数应为 3"
+            )
+
+    def test_emotion_css_token_layer(self):
+        """:root 必须提供一组 --scene-* 令牌，供新样式引用。"""
+        css = _slurp(SCENE_CSS)
+        root = re.search(r":root\{(.*?)\}", css, re.S)
+        self.assertIsNotNone(root, "scene.css 缺少 :root 令牌层")
+        block = root.group(1)
+        for token in (
+            "--scene-trust",
+            "--scene-anxiety",
+            "--scene-family",
+            "--scene-safe",
+            "--scene-warn",
+            "--scene-danger",
+            "--scene-mute",
+            "--scene-track",
+            "--scene-bar-dur",
+            "--scene-panel-bg",
+            "--scene-panel-border",
+            "--scene-panel-ink",
+        ):
+            self.assertIn(f"{token}:", block, f":root 缺少 CSS 变量 {token}")
+        self.assertGreaterEqual(
+            css.count("var(--scene-"), 10, "新样式未引用 --scene-* 变量"
+        )
+
+    def test_emotion_classes_have_css_rules(self):
+        """状态栏 / 危险区 / 拒绝配合 / 结束态 / 免责声明的类名必须在 scene.css 有规则。"""
+        css = _slurp(SCENE_CSS)
+        code = _slurp(SCENE_JS)
+        for name in (
+            "renderEmotionPanel",
+            "startEmotionTicker",
+            "ensureDisclaimer",
+            "ackDisclaimer",
+            "terminal_reason",
+            "state.ended",
+        ):
+            self.assertIn(name, code, f"scene.js 缺少 {name}")
+        for cls in (
+            "scene-emotion-panel",
+            "scene-emotion-row",
+            "scene-emotion-label",
+            "scene-emotion-bar",
+            "scene-emotion-fill",
+            "scene-emotion-value",
+            "scene-emotion-trend",
+            "scene-band-low",
+            "scene-band-high",
+            "scene-band-critical",
+            "scene-trend-shown",
+            "scene-trend-good",
+            "scene-trend-bad",
+            "scene-refuse",
+            "scene-refusing",
+            "scene-refusal-banner",
+            "scene-ended",
+            "scene-disclaimer-modal",
+            "scene-disclaimer-ack",
+        ):
+            self.assertIn(f".{cls}", css, f"scene.css 缺少 .{cls} 规则")
+
+    def test_page_scene_class_names_have_css_rules(self):
+        """页面里静态写出的 scene-* 类名也必须在 scene.css 有规则（骨架不得无样式）。"""
+        css = _slurp(SCENE_CSS)
+        missing = set()
+        for name in PAGES:
+            for attribute in re.findall(r'class="([^"]*)"', _page(name)):
+                for cls in attribute.split():
+                    if cls.startswith("scene-") and f".{cls}" not in css:
+                        missing.add(cls)
+        self.assertEqual(sorted(missing), [], f"页面使用但 scene.css 缺规则: {sorted(missing)}")
+
+    def test_pages_have_no_inline_style(self):
+        """页面禁止内联 style=""，布局必须来自 scene.css。"""
+        for name in PAGES:
+            html = _page(name)
+            self.assertNotIn('style="', html, f"{name} 仍有内联 style 属性")
+
+    def test_no_death_countdown_text(self):
+        """死亡倒计时文案必须移除；rupture_countdown 只服务声光报警。"""
+        for label, text in (
+            ("scene.js", _slurp(SCENE_JS)),
+            ("reception.html", _page("reception.html")),
+            ("workstation.html", _page("workstation.html")),
+        ):
+            self.assertNotIn("倒计时", text, f"{label} 仍出现「倒计时」字样")
+        self.assertIn("rupture_countdown", _slurp(SCENE_JS), "报警仍需 rupture_countdown")
+
+    def test_disclaimer_storage_key_and_copy(self):
+        """免责声明首次进入弹一次，使用 sessionStorage 键与规格原文。"""
+        code = _slurp(SCENE_JS)
+        self.assertIn("clinmind-disclaimer-ack", code, "scene.js 缺少免责声明 sessionStorage 键")
+        self.assertIn("sessionStorage", code, "scene.js 未使用 sessionStorage")
+        self.assertIn("scene-disclaimer-modal", code, "scene.js 未接管免责声明弹窗")
+        for name in PAGES:
+            html = _page(name)
+            self.assertIn('class="scene-dialog scene-disclaimer-modal"', html, f"{name} 缺少免责声明弹窗")
+            self.assertIn("本系统为医学教育模拟工具", html, f"{name} 缺少免责声明原文")
+            self.assertIn("不构成任何诊疗建议", html, f"{name} 免责声明原文不完整")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

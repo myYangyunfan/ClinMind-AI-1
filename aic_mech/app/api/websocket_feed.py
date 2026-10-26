@@ -10,6 +10,7 @@ import time
 from typing import Dict, Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.core.session_manager import SessionStore
+from app.api.routes_case import emotion_view
 from app.models.schemas import VitalsStreamPayload
 from app.models.entities import PatientStateEnum
 
@@ -69,6 +70,7 @@ async def websocket_vitals_endpoint(websocket: WebSocket, session_id: str):
 
             # Check time-triggered family interruptions
             spontaneous_msgs = session.spontaneous_dialogues
+            emotion = emotion_view(session)
 
             # Build broadcast telemetry payload
             payload = {
@@ -78,8 +80,17 @@ async def websocket_vitals_endpoint(websocket: WebSocket, session_id: str):
                 "vitals": vitals.model_dump(),
                 "patient_state": state.value,
                 "is_finished": session.is_finished,
-                "trust_level": round(session.agent_engine.state.patient_trust, 2),
-                "family_anxiety": round(session.agent_engine.state.family_anxiety, 2),
+                # trust_level 沿用旧字段名，值由 EmotionEngine 提供：时间项
+                # 只有它有，UI 的信任条要能看到 8 分钟挂机后的 0.15 地板。
+                "trust_level": round(emotion["patient_trust"], 2),
+                # 情绪通道（契约 05 §4）：只增不改，旧键原样保留。
+                # family_anxiety 与 /session/status 的 agent_anxiety 同值来源。
+                "patient_anxiety": round(emotion["patient_anxiety"], 2),
+                "family_anxiety": round(emotion["family_anxiety"], 2),
+                "trust_trend": emotion["trust_trend"],
+                "anxiety_trend": emotion["anxiety_trend"],
+                "refuse": emotion["refuse"],
+                "terminal_reason": emotion["terminal_reason"],
                 "alarms": list(session.agent_engine.state.active_critical_alarms),
                 "rupture_countdown": countdown,
                 "spontaneous_dialogues": [m.model_dump() for m in spontaneous_msgs]
