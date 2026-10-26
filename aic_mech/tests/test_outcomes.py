@@ -653,5 +653,90 @@ class LlmGuardTests(unittest.TestCase):
         self.assertTrue(result.accepted)
 
 
+class SkipAllergyEventTests(unittest.TestCase):
+    """SKIP_ALLERGY：未确认过敏史即用药，会话级只派发一次。
+
+    口径（lead 定）：只在用药动作上判；本会话问诊/查体文本命中过敏关键词即
+    视为已问；红线用药只走 RED_LINE_MED，不叠加第二个惩罚。
+    """
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path_patch = patch.object(config, "RUNTIME_DIR", Path(self.temp.name))
+        self.path_patch.start()
+        self.old_store = SessionStore._instance
+        SessionStore._instance = None
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        SessionStore._instance = self.old_store
+        self.path_patch.stop()
+        self.temp.cleanup()
+
+    def start(self):
+        response = self.client.post("/api/case/start", json={"case_id": CHEST_PAIN_CASE_ID})
+        self.assertEqual(response.status_code, 200, response.text)
+        session_id = response.json()["session_id"]
+        return session_id, SessionStore.get_instance().get_session(session_id)
+
+    def act(self, session_id, action_type, content, **params):
+        response = self.client.post(
+            "/api/action/execute",
+            json={"session_id": session_id, "action_type": action_type, "content": content, "params": params},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    @staticmethod
+    def events(session, code):
+        return [r for r in session.emotion.delta_log if r.get("event") == code]
+
+    def trust(self, session):
+        return session.emotion.snapshot()["patient_trust"]
+
+    def test_unasked_allergy_dispenses_skip_allergy_once(self):
+        session_id, session = self.start()
+        before = self.trust(session)
+        payload = self.act(session_id, "medication", "艾司洛尔", dose=50, unit="mg")
+
+        self.assertTrue(self.events(session, "SKIP_ALLERGY"), "未问过敏史即用药应派发 SKIP_ALLERGY")
+        self.assertFalse(self.events(session, "CORRECT_TREATMENT"), "本次用药不应再叠加 CORRECT_TREATMENT")
+        self.assertAlmostEqual(before - self.trust(session), 0.10, delta=0.02)
+        self.assertIn("过敏", payload["message"])
+        self.assertTrue(payload["emotion_applied"])
+
+    def test_asking_allergy_first_suppresses_event(self):
+        session_id, session = self.start()
+        self.act(session_id, "inquiry", "你有没有药物过敏史？以前吃过什么药有不良反应吗？")
+        before = self.trust(session)
+        self.act(session_id, "medication", "艾司洛尔", dose=50, unit="mg")
+
+        self.assertFalse(self.events(session, "SKIP_ALLERGY"), "问过过敏史后不应再扣信任")
+        self.assertTrue(self.events(session, "CORRECT_TREATMENT"))
+        self.assertLess(before - self.trust(session), 0.05, "信任不应因过敏史缺项下降")
+
+    def test_event_is_session_level_only_once(self):
+        session_id, session = self.start()
+        self.act(session_id, "medication", "艾司洛尔", dose=50, unit="mg")
+        self.act(session_id, "medication", "艾司洛尔", dose=50, unit="mg")
+
+        dispatched = {r["metric"] for r in self.events(session, "SKIP_ALLERGY")}
+        self.assertTrue(dispatched, "第一次用药应派发")
+        # 两次用药只允许一组 delta（trust/anxiety/family 三条 metric 各一次）
+        self.assertEqual(
+            len(self.events(session, "SKIP_ALLERGY")), len(dispatched),
+            "第二次用药不应重复派发 SKIP_ALLERGY",
+        )
+        self.assertTrue(self.events(session, "CORRECT_TREATMENT"), "第二次用药按正常处置记账")
+
+    def test_red_line_medication_does_not_stack_skip_allergy(self):
+        session_id, session = self.start()
+        payload = self.act(session_id, "medication", "阿司匹林", dose=300, unit="mg")
+
+        self.assertTrue(payload["is_contraindicated"])
+        self.assertTrue(self.events(session, "RED_LINE_MED"), "红线药必须走 RED_LINE_MED")
+        self.assertFalse(self.events(session, "SKIP_ALLERGY"), "红线已判罚，不得叠加过敏史缺项")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

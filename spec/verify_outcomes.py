@@ -17,9 +17,16 @@
                  （守门条件用与时间无关的 ``treated``，不是 ``trust > 0.40``）。
 离院（leave）  ：零处置、只把虚拟时间推到 360 秒（trust 衰减到地板 0.15、焦虑升至
                  0.80 以上），模拟患者/家属放弃等待、签字离院 → 命中结局必须是 C。
+                 胸痛例外：它的 C 还带 ``SBP < 200`` 上限，而 360 秒时已进 S1 危象
+                 （实测 SBP 211.9），所以改用 ``leave_ticks = 260``——信任阈值 0.22
+                 在 t≈225 s 达标、危象在 t>300 s 才开始，260 秒正好落在这 75 秒窗口内。
+                 400 秒挂机（idle）仍必须是 B：危象期不许签字离院。
 死亡（death）  ：一剂该病例的红线药（LETHAL 或 HARMFUL）后立即结案 → 必须是 D。
                  D 的首项条件永远是 ``has_red_line``：红线药在任何病例里都不能被
-                 降级成 B/C（安全底线），病例专属的生理死亡条件追加在其后。
+                 降级成 B/C（安全底线）。目录病例（感冒/胃肠炎/哮喘/低血糖/阑尾炎）
+                 只有这一条——``PhysiologyEngine._advance_generic()`` 没有恶化通路，
+                 任何病例专属的生理死亡子句在实机都落不到地，已从 JSON 删除；
+                 胸痛保留 ``TAMPONADE`` / ``SBP <= 80``，它们经 S1→S3/S4 实机可达。
 
 时间推进为什么用 tick_all 而不是 HTTP：``/api/action/execute`` 不推进虚拟时钟，
 服务器自身的时钟就是 lifespan 里每秒一次的 ``store.tick_all()``（见
@@ -57,6 +64,11 @@ SCENARIOS: Dict[str, Dict[str, Any]] = {
         "source": str(DATA_DIR / "case_chest_pain.json"),
         "diagnosis": "Stanford A型主动脉夹层",
         "ticks": 400,
+        # 离院窗口：trust 0.40 −0.0008/s，到 0.22 在 t≈225 s；S1 危象 t>300 s 后
+        # SBP 195→202 越过 C 的 SBP < 200 上限。所以胸痛的离院只能落在
+        # 225–300 s 这 75 秒里，取 260 s（窗口内、信任阈值已过、血压还没失控）。
+        "leave_ticks": 260,
+        "expect": {"idle": "B", "leave": "C"},
         "best": [
             ("medication", "盐酸艾司洛尔注射液", {"dose": 50, "unit": "mg"}),
             ("medication", "注射用硝普钠", {"dose": 50, "unit": "mg"}),
@@ -211,7 +223,8 @@ def main() -> int:
         # 最优处置 + 400 秒久候：处置正确就不该因时间流逝被判延误。
         long_wait = _run(client, case_id, spec, best=True, ticks=LONG_WAIT_SECONDS)
         # 离院：零处置 + 360 秒，trust 落到地板、焦虑升高 → C。
-        leave = _run(client, case_id, spec, best=False, ticks=LEAVE_TICKS)
+        leave = _run(client, case_id, spec, best=False,
+                     ticks=int(spec.get("leave_ticks", LEAVE_TICKS)))
         # 死亡：该病例的一条红线药 → has_red_line → D。
         death = _run(client, case_id, spec, best=False, ticks=0,
                      actions=DEATH_ACTIONS[case_id])
@@ -222,6 +235,12 @@ def main() -> int:
 
         if idle["code"] == "A":
             failures.append(f"{case_id} 空转场景命中 A（零处置也拿治愈结局）")
+        expected_idle = (spec.get("expect") or {}).get("idle")
+        if expected_idle and idle["code"] != expected_idle:
+            failures.append(
+                f"{case_id} 空转场景未命中 {expected_idle}：实际 {idle['code']}（{idle['label']}）"
+                f"，体征 {idle['vitals']}，physiology={idle['state']}"
+            )
         if instant["code"] == "A":
             failures.append(f"{case_id} t=0 零操作直接命中 A（白送治愈结局）")
         if best["code"] != "A":
@@ -234,10 +253,11 @@ def main() -> int:
                 f"{case_id} 最优处置后等待 {LONG_WAIT_SECONDS} 秒未命中 A：实际 {long_wait['code']}"
                 f"（{long_wait['label']}），treated={long_wait['treated']}，体征 {long_wait['vitals']}"
             )
-        if leave["code"] != "C":
+        expected_leave = (spec.get("expect") or {}).get("leave", "C")
+        if leave["code"] != expected_leave:
             failures.append(
-                f"{case_id} 离院场景未命中 C：实际 {leave['code']}（{leave['label']}）"
-                f"，treated={leave['treated']}，体征 {leave['vitals']}"
+                f"{case_id} 离院场景未命中 {expected_leave}：实际 {leave['code']}（{leave['label']}）"
+                f"，treated={leave['treated']}，体征 {leave['vitals']}，physiology={leave['state']}"
             )
         if death["code"] != "D":
             failures.append(

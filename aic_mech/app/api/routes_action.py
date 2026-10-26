@@ -127,6 +127,45 @@ def _split_inquiry_result(result):
     return dialogues, kind
 
 
+# ================= 过敏史缺项：SKIP_ALLERGY 的派发口径 =================
+# 只在「用药」动作上判：首诊没问过敏史不算跳过，学员可能马上就问。
+ALLERGY_KEYWORDS = ("过敏", "药物过敏", "过敏史", "不良反应", "忌口")
+_ALLERGY_PROMPT_MARKER = "未确认过敏史"
+_ASKED_ACTION_KINDS = ("inquiry", "ask", "physical_exam", "exam")
+
+
+def _action_kind(record) -> str:
+    """ActionRecord.action_type 可能是枚举也可能是字符串，统一成小写值。"""
+    kind = getattr(record, "action_type", "")
+    kind = getattr(kind, "value", kind)
+    return str(kind).lower()
+
+
+def _allergy_asked(session) -> bool:
+    """本会话是否已就过敏史问诊/查体过（按文本命中判，不看当时是否问出结果）。"""
+    for record in session.action_history:
+        if _action_kind(record) not in _ASKED_ACTION_KINDS:
+            continue
+        if _hit(getattr(record, "content", "") or "", ALLERGY_KEYWORDS):
+            return True
+    return False
+
+
+def _allergy_prompt_emitted(session) -> bool:
+    """本次会话是否已经派发过 SKIP_ALLERGY。
+
+    entities.py 不在本层授权内，不给会话加新字段；改用动作历史里的提示文案
+    当幂等标记——动作记录会随会话 persist，重载/换前端都不会重复扣分。
+    注意：动作记录是在本分支之后才 append 的，所以本次用药不会误判自己。
+    """
+    for record in session.action_history:
+        if _ALLERGY_PROMPT_MARKER in str(getattr(record, "result", "") or ""):
+            return True
+        if _ALLERGY_PROMPT_MARKER in str(getattr(record, "warning_message", "") or ""):
+            return True
+    return False
+
+
 def _apply_emotion(session, code: str, ctx: Dict[str, Any]) -> bool:
     """调 EmotionEngine 落一次情绪事件，返回是否真的落账。
 
@@ -440,7 +479,18 @@ def execute_action(req: ActionRequest):
             feedback_message = med_result.get("message")
             nurse_msg = session.agent_engine.notify_order_dispatched(f"用药：{content} {dose}{unit}")
             dialogues.append(nurse_msg)
-            emotion_code, emotion_applied = "CORRECT_TREATMENT", True
+            if not _allergy_asked(session) and not _allergy_prompt_emitted(session):
+                # 02 §1.3 / 05 §4：未确认过敏史即用药，整条事件只派一次。
+                # 这里替代（而非叠加）CORRECT_TREATMENT：处置本身没错，但沟通
+                # 缺项的净效果是信任下降 -0.10，与引擎 delta 一致。
+                emotion_code, emotion_applied = "SKIP_ALLERGY", True
+                allergy_note = (
+                    f"【过敏史缺项】未确认过敏史即用药，患者对医嘱的信任下降。"
+                    f"（{content} {dose}{unit}）"
+                )
+                feedback_message = f"{feedback_message} {allergy_note}".strip() if feedback_message else allergy_note
+            else:
+                emotion_code, emotion_applied = "CORRECT_TREATMENT", True
 
     # ================= 5. RESCUE / DISPOSITION (急救与终末转归) =================
     elif action_type in (ActionType.RESCUE_DISPOSITION, "rescue_disposition", "dispo", "rescue"):

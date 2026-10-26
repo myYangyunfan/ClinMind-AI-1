@@ -694,7 +694,7 @@
     "D": {
       "code": "D",
       "label": "死亡/不良事件",
-      "condition": "has_red_line || outcome_of('physiology') == 'ARREST' || (SBP <= 90 && HR >= 120 && pain_vas >= 9)",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
       "title": "一支溶栓针，一台收不了的手术",
       "narration": "你把他当成了别的病，推了一支阿替普酶。开腹时整个右下腹都是渗血，止血花了四十分钟，视野里分不清哪是阑尾哪是血管。穿孔、出血、感染性休克叠在一起，ICU 住了十九天。",
       "patient_line": "（术后带管，无法应答）",

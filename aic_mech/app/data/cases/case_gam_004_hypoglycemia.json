@@ -675,7 +675,7 @@
     "D": {
       "code": "D",
       "label": "死亡/不良事件",
-      "condition": "has_red_line || outcome_of('physiology') == 'ARREST' || (HR <= 55 && RR <= 12)",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
       "title": "先吃药，后拍片",
       "narration": "你把他当成卒中，没做 CT 就推了一支肝素、喂了一片阿司匹林。CT 结果是腔隙灶，没有出血，也没有梗死——血是干净的，问题在血糖，2.6。凌晨他因为硬膜下血肿再次被送来，这一次 CT 上有了东西。",
       "patient_line": "（反应迟钝）大夫……我头怎么这么疼……",

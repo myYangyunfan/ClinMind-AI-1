@@ -678,7 +678,7 @@
     "D": {
       "code": "D",
       "label": "死亡/不良事件",
-      "condition": "has_red_line || outcome_of('physiology') == 'ARREST' || (SpO2 <= 88 && RR >= 32)",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
       "title": "一片止痛药，一次窒息",
       "narration": "她说头痛，你顺手开了一片阿司匹林。二十分钟后哮鸣音突然消失，肺里安静得可怕，SpO₂ 掉到 78%。那不是好转，是气道几乎完全闭合的「静默肺」。肾上腺素推了两轮，插管没能改变结局。",
       "patient_line": "（说不出话，双手抓喉，SpO₂ 78%）",
