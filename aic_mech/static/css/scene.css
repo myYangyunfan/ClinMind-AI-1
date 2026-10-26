@@ -140,3 +140,51 @@ html,body{background:#c6d0bd}body{display:flex;align-items:center;justify-conten
 .workstation .scene-emotion-value{font-size:10px}
 .workstation .scene-emotion-trend{font-size:9px}
 .workstation .scene-refusal-banner{font-size:8px}
+
+/* ===== 训练说明书：独立 dialog 实例（不占用全局 .scene-dialog 的 Esc 判定） ===== */
+.scene-manual{width:min(760px,94vw)}
+.scene-manual-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px;background:var(--scene-surface-sunken);border-bottom:1px solid var(--scene-border)}
+.scene-manual-head h2{margin:0;font-size:18px;letter-spacing:.5px;color:var(--scene-panel-ink)}
+.scene-manual-close{display:flex;align-items:center;gap:7px;font:12px "Microsoft YaHei",sans-serif;padding:7px 14px;border:1px solid var(--scene-brand-border);border-radius:8px;background:var(--scene-brand);color:var(--scene-on-brand);cursor:pointer}
+.scene-manual-tabs{display:flex;gap:6px;padding:12px 24px 0;background:var(--scene-surface);border-bottom:1px solid var(--scene-border)}
+.scene-manual-tab{font:12px "Microsoft YaHei",sans-serif;padding:9px 14px;border:1px solid var(--scene-border);border-bottom:0;border-radius:9px 9px 0 0;background:var(--scene-surface-sunken);color:var(--scene-panel-ink-mute);cursor:pointer}
+.scene-manual-tab[aria-selected="true"]{background:var(--scene-panel-bg);color:var(--scene-panel-ink);font-weight:700;box-shadow:inset 0 -2px 0 var(--scene-trust)}
+.scene-manual-body{padding:18px 24px 6px;max-height:min(58vh,520px);overflow:auto;color:var(--scene-panel-ink);line-height:1.7}
+.scene-manual-panel[hidden]{display:none}
+.scene-manual-lead{margin:0 0 12px;font-size:12px;color:var(--scene-panel-ink-mute)}
+.scene-manual-grid{display:grid;grid-template-columns:88px minmax(0,1fr);gap:7px 12px;margin:0 0 14px;font-size:12px}
+.scene-manual-grid dt{color:var(--scene-panel-ink-mute)}
+.scene-manual-grid dd{margin:0;color:var(--scene-panel-ink);overflow-wrap:anywhere}
+.scene-manual-list{margin:0 0 14px;padding-left:18px;font-size:12px}
+.scene-manual-list li{margin:5px 0}
+.scene-manual-table{width:100%;border-collapse:collapse;font-size:12px}
+.scene-manual-table th,.scene-manual-table td{border:1px solid var(--scene-border);padding:7px 9px;text-align:left;vertical-align:top}
+.scene-manual-table th{background:var(--scene-surface-sunken);color:var(--scene-panel-ink);font-weight:700;white-space:nowrap}
+.scene-manual-note{margin:12px 0 14px;padding:9px 12px;border-left:3px solid var(--scene-warn);background:var(--scene-refusal-bg);color:var(--scene-panel-ink);font-size:12px}
+.scene-manual-foot{margin:0;padding:0 24px 18px;font-size:11px;color:var(--scene-panel-ink-mute)}
+
+/* ===== 病历记录区：原生 details 折叠，两页各自定位 ===== */
+/* 网格只有一行：行高必须锁在容器内，否则多出的病历区会把行撑高、压到页脚上 */
+.work-grid{grid-template-rows:minmax(0,1fr)}
+.scene-record-area{position:absolute;z-index:6;width:300px;font-family:"Microsoft YaHei",sans-serif}
+.reception .scene-record-area{left:498px;top:352px}
+.workstation .scene-record-area{position:static;width:auto;flex-shrink:0}
+.scene-record-details{background:var(--scene-panel-bg);border:1px solid var(--scene-panel-border);border-radius:12px;box-shadow:var(--scene-panel-shadow);overflow:hidden}
+.scene-record-summary{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:11px;color:var(--scene-panel-ink);list-style:none}
+.scene-record-summary::-webkit-details-marker{display:none}
+.scene-record-summary::before{content:"▸";font-size:10px;color:var(--scene-panel-ink-mute)}
+.scene-record-details[open] .scene-record-summary::before{content:"▾"}
+.scene-record-hint{font-size:10px;color:var(--scene-panel-ink-mute)}
+.scene-record-count{margin-left:auto;font-family:Consolas,monospace;font-size:10px;padding:1px 7px;border-radius:999px;background:var(--scene-track);color:var(--scene-panel-ink-mute)}
+.scene-record-list{margin:0;padding:4px 12px 10px;list-style:none;max-height:216px;overflow:auto;font-size:11px}
+.scene-record-list[hidden]{display:none}
+.scene-record-item{display:grid;grid-template-columns:38px 38px minmax(0,1fr);gap:6px;padding:5px 0;border-top:1px dashed var(--scene-track);color:var(--scene-panel-ink)}
+.scene-record-item:first-child{border-top:0}
+.scene-record-time{font-family:Consolas,monospace;font-size:10px;color:var(--scene-panel-ink-mute)}
+.scene-record-type{font-size:10px;text-align:center;border-radius:4px;background:var(--scene-track);color:var(--scene-panel-ink-mute)}
+.scene-record-text{overflow-wrap:anywhere}
+.scene-record-flag{grid-column:3;font-size:10px;font-weight:700;color:var(--scene-danger)}
+.scene-record-report{grid-column:3;font-size:10px;line-height:1.5;color:var(--scene-brand)}
+.scene-record-empty{margin:0;padding:2px 12px 12px;font-size:11px;line-height:1.6;color:var(--scene-panel-ink-mute)}
+.scene-record-empty[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.scene-record-summary::before{transition:none}}

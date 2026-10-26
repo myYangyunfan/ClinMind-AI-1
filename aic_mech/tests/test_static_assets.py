@@ -229,5 +229,75 @@ class TestStaticAssetsConsistency(unittest.TestCase):
             self.assertIn("不构成任何诊疗建议", html, f"{name} 免责声明原文不完整")
 
 
+    def test_manual_dialog_present_on_both_pages(self):
+        """两页都要有说明书弹窗与三个页签（页签是静态 DOM，不靠 JS 现拼）。"""
+        tabs = ("这个病例要看什么", "每个模块能做什么", "评分怎么算")
+        for name in PAGES:
+            html = _page(name)
+            self.assertIn('class="scene-dialog scene-manual"', html, f"{name} 缺少说明书弹窗")
+            self.assertIn('id="manual-dialog"', html, f"{name} 缺少 #manual-dialog")
+            self.assertEqual(
+                len(re.findall(r'class="scene-manual-tab"', html)), 3, f"{name} 页签数量不是 3"
+            )
+            self.assertEqual(
+                len(re.findall(r'class="scene-manual-panel"', html)),
+                3,
+                f"{name} 说明书内容面板数量不是 3",
+            )
+            for tab in tabs:
+                self.assertIn(tab, html, f"{name} 缺少页签文案：{tab}")
+
+    def _manual_copy(self):
+        code = _slurp(SCENE_JS)
+        self.assertIn("#manual-copy-begin", code, "scene.js 缺少说明书文案起始标记")
+        self.assertIn("#manual-copy-end", code, "scene.js 缺少说明书文案结束标记")
+        start = code.index("#manual-copy-begin")
+        return code[start:code.index("#manual-copy-end")]
+
+    def test_manual_copy_avoids_answers(self):
+        """说明书只给方向与方法：不得出现诊断名、药名或剂量答案。"""
+        block = self._manual_copy()
+        for word in (
+            "主动脉夹层",
+            "夹层",
+            "心肌梗死",
+            "阑尾炎",
+            "Stanford",
+            "艾司洛尔",
+            "硝普钠",
+            "吗啡",
+            "阿司匹林",
+            "mg",
+        ):
+            self.assertNotIn(word, block, f"说明书文案出现答案词：{word}")
+        for phrase in ("不给出诊断名称", "剂量"):
+            self.assertIn(phrase, block, f"说明书缺少边界说明：{phrase}")
+
+    def test_record_area_present_on_both_pages(self):
+        """两页都要有病历记录区：可展开、有计数位、有空态文案。"""
+        for name in PAGES:
+            html = _page(name)
+            self.assertIn('id="record-area"', html, f"{name} 缺少 #record-area")
+            self.assertIn('class="scene-record-area"', html, f"{name} 缺少 scene-record-area")
+            self.assertIn('class="scene-record-list"', html, f"{name} 缺少记录列表容器")
+            self.assertIn("scene-record-count", html, f"{name} 缺少记录条数位")
+            self.assertIn("scene-record-empty", html, f"{name} 缺少空态文案")
+            self.assertIn("<details", html, f"{name} 记录区应当可展开")
+
+    def test_toolbar_exposes_manual_and_record_entry(self):
+        """顶部工具条必须同时挂「说明书」与「病历记录」两个入口。"""
+        code = _slurp(SCENE_JS)
+        self.assertIn("scene-tools", code, "工具条容器缺失")
+        self.assertIn("['病历记录',openRecord]", code, "工具条缺少病历记录入口")
+        self.assertIn("['说明书',openManual]", code, "工具条缺少说明书入口")
+
+    def test_esc_guard_checks_every_dialog(self):
+        """Esc 判定必须看全部 dialog，不能只认全局 dialog 实例。"""
+        code = _slurp(SCENE_JS)
+        self.assertIn("function anyModalOpen", code, "scene.js 缺少 anyModalOpen")
+        self.assertIn("anyModalOpen()", code, "全局快捷键未使用 anyModalOpen")
+        self.assertNotIn("!dialog.open&&!modalOpen", code, "Esc 仍只判定单一 dialog")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

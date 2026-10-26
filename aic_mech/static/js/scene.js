@@ -73,6 +73,9 @@
   document.body.append(log); $('button', log).onclick = () => { log.hidden = true; };
   const dialog = document.createElement('dialog'); dialog.className = 'scene-dialog'; document.body.append(dialog);
   dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+  // 全局快捷键只认这一个 dialog 时，说明书窗口开着按 Esc 会「一边关窗一边跳页」。
+  // 统一按「当前有没有任何 modal 打开」判断。
+  function anyModalOpen() { return [...document.querySelectorAll('dialog')].some(node => node.open); }
   function fit() { canvas.style.transform = `scale(${Math.min(innerWidth / 1600, innerHeight / 900)})`; }
   addEventListener('resize', fit); fit();
   function toast(text, error = false) {
@@ -228,6 +231,201 @@
     $('.scene-disclaimer-ack', modal)?.addEventListener('click', ackDisclaimer);
     if (sessionStorage.getItem(DISCLAIMER_KEY) === '1') return;
     if (!modal.open) modal.showModal();
+  }
+  /* ===== 训练说明书：独立 <dialog>（#manual-dialog），不共用全局 dialog 实例 =====
+     Esc 由浏览器原生 cancel 关闭本窗；全局 keydown 用 anyModalOpen() 兜住，不再跳页。 */
+  // #manual-copy-begin —— 说明书全部文案只在这里维护（测试按标记切片检查答案泄漏）
+  const MANUAL_MODULES = [
+    ['问诊', '按方向追问主诉的时间轴、诱因、演变与既往史，也可以用输入框问自己的问题。', '记录问诊条数与相关性，计入「医患沟通感」与「鉴别思维广」。'],
+    ['体查', '做双侧对比、听诊、触诊等床旁动作，把「哪里不一样」变成可写进病历的证据。', '记录查体的针对性与顺序，计入「急救处置力」与「安全规避度」。'],
+    ['检验', '下达客观检查，结果以报告形式返回，可随时在「报告」入口复看。', '记录有没有做能证实或证伪当前判断的关键检查，计入「确诊决策度」。'],
+    ['处方', '选择处置的分类与时机（药理类别、血流动力学目标），系统不给标准答案。', '只判断类别与时机是否匹配；具体品种与剂量由你自己负责。'],
+    ['转归', '建立通道、请会诊、谈知情同意、启动抢救流程，决定这一例的走向。', '记录处置顺序与时效，是「临床时效性」的主要来源。']
+  ];
+  const MANUAL_SIGNALS = [
+    '时间轴：症状何时开始、怎么演变、什么让它加重或缓解——先确认这些线索能串成一条解释。',
+    '危险信号：先回答「有没有必须立刻处理的致命可能」，再考虑常见病；顺序错了，后面的检查就白做。',
+    '可验证性：每个判断都要说得出「哪一项检查或体征支持它」，说不出依据的判断不计分。'
+  ];
+  const MANUAL_SCORING = [
+    ['急救处置力', '危急问题的处理是否先于常规流程。'],
+    ['临床时效性', '关键动作出现在病程的第几分钟，有没有反复空转。'],
+    ['医患沟通感', '有没有解释、安抚与告知，问诊是否答到点上。'],
+    ['安全规避度', '是否触发禁忌操作、是否遗漏必须排除的风险。'],
+    ['鉴别思维广', '是否用检查主动区分几个候选方向，而不是只赌一个。'],
+    ['确诊决策度', '最终判断与已取得的证据链是否对得上。']
+  ];
+  const MANUAL_BOUNDARY = '说明书不给出诊断名称，也不给具体药名与剂量：方向与方法可以讲，答案要你自己在问诊、体查、检验里取。';
+  // #manual-copy-end
+  const manualDialog = $('#manual-dialog');
+  let manualTab = 0;
+
+  function manualCaseFacts() {
+    const profile = snapshot?.case_profile || {};
+    const patient = profile.patient_profile || {};
+    const initialVitals = profile.initial_vitals || null;
+    const vitals = initialVitals || snapshot?.vitals || {};
+    const facts = [];
+    if (profile.chief_complaint) facts.push(['主诉', String(profile.chief_complaint)]);
+    const who = [patient.gender, patient.age ? `${patient.age} 岁` : ''].filter(Boolean).join(' · ');
+    if (patient.name || who) facts.push(['患者', `${patient.name || '虚拟患者'}${who ? ` · ${who}` : ''}`]);
+    if (profile.category) facts.push(['分科', String(profile.category)]);
+    if (profile.difficulty) facts.push(['难度', String(profile.difficulty)]);
+    const vitalsText = [
+      Number.isFinite(vitals.hr) ? `HR ${Math.round(vitals.hr)}` : '',
+      Number.isFinite(vitals.sbp) ? `BP ${Math.round(vitals.sbp)}/${Math.round(vitals.dbp ?? 0)}` : '',
+      Number.isFinite(vitals.spo2) ? `SpO₂ ${Math.round(vitals.spo2)}%` : ''
+    ].filter(Boolean).join(' · ');
+    if (vitalsText) facts.push([initialVitals ? '初始体征' : '当前体征', vitalsText]);
+    return facts;
+  }
+
+  function fillManualOverview(panel) {
+    panel.replaceChildren();
+    panel.append(element('p', '本页只给观察方向：先问什么、先查什么、先排除什么。不给出诊断名称，也不给用药答案。', 'scene-manual-lead'));
+    const facts = manualCaseFacts();
+    const grid = element('dl', undefined, 'scene-manual-grid');
+    if (facts.length) facts.forEach(([key, value]) => { grid.append(element('dt', key), element('dd', value)); });
+    else grid.append(element('dt', '病例'), element('dd', '尚未接入病例：开始接诊后这里显示主诉、分科与初始体征。'));
+    panel.append(grid);
+    panel.append(element('h3', '三条通用观察线'));
+    const list = element('ol', undefined, 'scene-manual-list');
+    MANUAL_SIGNALS.forEach(text => list.append(element('li', text)));
+    panel.append(list);
+    panel.append(element('p', MANUAL_BOUNDARY, 'scene-manual-note'));
+  }
+
+  function fillManualModules(panel) {
+    panel.replaceChildren();
+    panel.append(element('p', '底部五个页签决定你能拿到哪一类证据。规则评的是「做了什么、顺序对不对」，不评你背了多少。', 'scene-manual-lead'));
+    const table = element('table', undefined, 'scene-manual-table');
+    const head = document.createElement('thead'); const headRow = document.createElement('tr');
+    ['模块', '你能做什么', '评分怎么记'].forEach(text => headRow.append(element('th', text)));
+    head.append(headRow); table.append(head);
+    const body = document.createElement('tbody');
+    MANUAL_MODULES.forEach(([name, can, score]) => {
+      const row = document.createElement('tr');
+      row.append(element('td', name), element('td', can), element('td', score));
+      body.append(row);
+    });
+    table.append(body); panel.append(table);
+    panel.append(element('p', '页签 1–5 与输入框等价：点页签只是把整条指令填好，措辞可以自己写。', 'scene-manual-note'));
+  }
+
+  function fillManualScoring(panel) {
+    panel.replaceChildren();
+    panel.append(element('p', '评分来自你的操作序列与规则模型，不看最终诊断的字面写法，也不读心。', 'scene-manual-lead'));
+    const table = element('table', undefined, 'scene-manual-table');
+    const head = document.createElement('thead'); const headRow = document.createElement('tr');
+    ['维度', '看什么'].forEach(text => headRow.append(element('th', text)));
+    head.append(headRow); table.append(head);
+    const body = document.createElement('tbody');
+    MANUAL_SCORING.forEach(([name, desc]) => {
+      const row = document.createElement('tr');
+      row.append(element('td', name), element('td', desc));
+      body.append(row);
+    });
+    table.append(body); panel.append(table);
+    const list = element('ul', undefined, 'scene-manual-list');
+    [
+      '训练总分：六个维度加权后的 0–100 分。',
+      '拓扑相似度：你的操作序列与标准路径的结构相似程度。',
+      '图编辑距离：把操作序列改成标准路径需要几步，越小越接近。',
+      '禁忌操作：直接进入复盘反馈的致命问题清单，并压低安全类得分。'
+    ].forEach(text => list.append(element('li', text)));
+    panel.append(list);
+    panel.append(element('p', '结案后可导出 JSON 报告，含六维分数、复盘反馈与操作时间线。', 'scene-manual-note'));
+  }
+
+  function setManualTab(index) {
+    manualTab = Math.max(0, Math.min(2, Number(index) || 0));
+    if (!manualDialog) return;
+    $$('.scene-manual-tab', manualDialog).forEach((tab, i) => {
+      const active = i === manualTab;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+    });
+    $$('.scene-manual-panel', manualDialog).forEach((panel, i) => { panel.hidden = i !== manualTab; });
+  }
+
+  function renderManual() {
+    if (!manualDialog) return;
+    [fillManualOverview, fillManualModules, fillManualScoring].forEach((fill, index) => {
+      const panel = $(`.scene-manual-panel[data-panel="${index}"]`, manualDialog);
+      if (panel) fill(panel);
+    });
+    setManualTab(manualTab);
+  }
+
+  function openManual() {
+    if (!manualDialog) return;
+    renderManual();
+    if (!manualDialog.open) manualDialog.showModal();
+    $('.scene-manual-tab[aria-selected="true"]', manualDialog)?.focus();
+  }
+
+  function ensureManual() {
+    if (!manualDialog) return;
+    $('.scene-manual-close', manualDialog)?.addEventListener('click', () => manualDialog.close());
+    manualDialog.addEventListener('click', event => { if (event.target === manualDialog) manualDialog.close(); });
+    $$('.scene-manual-tab', manualDialog).forEach((tab, index) => {
+      tab.addEventListener('click', () => setManualTab(index));
+      tab.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+        event.preventDefault();
+        const next = (index + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+        setManualTab(next);
+        $$('.scene-manual-tab', manualDialog)[next]?.focus();
+      });
+    });
+    setManualTab(0);
+  }
+
+  /* ===== 病历记录区：已执行操作 + 检查结果摘要，按 virtual_time_seconds 排序展示 ===== */
+  const ACTION_LABELS = {inquiry: '问诊', physical_exam: '体查', lab_order: '检验', medication: '处方', rescue_disposition: '转归'};
+  function recordClock(action) {
+    const total = Math.max(0, Math.round(Number(action?.virtual_time_seconds) || 0));
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  }
+  function reportSummary(result) {
+    if (!result || typeof result !== 'object') return '';
+    const pairs = Object.entries(result.details || {}).slice(0, 2).map(([key, value]) => `${key} ${value}`);
+    const conclusion = String(result.conclusion || result.interpretation || '').trim();
+    const text = [...pairs, conclusion].filter(Boolean).join(' · ');
+    return text.length > 72 ? `${text.slice(0, 71)}…` : text;
+  }
+  function renderRecord(source) {
+    const root = $('#record-area');
+    if (!root) return;
+    const list = $('.scene-record-list', root);
+    const empty = $('.scene-record-empty', root);
+    const count = $('.scene-record-count', root);
+    const actions = Array.isArray(source?.actions) ? source.actions : [];
+    if (list) {
+      list.replaceChildren();
+      actions.forEach(action => {
+        const item = element('li', undefined, 'scene-record-item');
+        item.append(
+          element('span', recordClock(action), 'scene-record-time'),
+          element('span', ACTION_LABELS[String(action?.action_type || '').toLowerCase()] || '操作', 'scene-record-type'),
+          element('span', String(action?.content || '（未记录内容）'), 'scene-record-text')
+        );
+        if (action?.is_contraindicated) item.append(element('span', `禁忌操作 · ${action.warning_message || '与安全底线冲突'}`, 'scene-record-flag'));
+        const brief = reportSummary(action?.result);
+        if (brief) item.append(element('span', brief, 'scene-record-report'));
+        list.append(item);
+      });
+      list.hidden = actions.length === 0;
+    }
+    if (empty) empty.hidden = actions.length > 0;
+    if (count) count.textContent = `${actions.length} 条`;
+  }
+  function openRecord() {
+    const details = $('#record-area details');
+    if (!details) return;
+    renderRecord(snapshot);
+    details.open = true;
+    $('.scene-record-summary', details)?.focus();
   }
   function showLog() {
     const body = $('.scene-log-body', log); body.replaceChildren();
@@ -443,7 +641,7 @@
   async function refresh() {
     snapshot=await api(`/api/case/session/${encodeURIComponent(sessionId)}/workspace`);
     renderCaseProfile(snapshot.case_profile);
-    telemetry(snapshot); radar(snapshot.radar_scores); updateSpeech();
+    telemetry(snapshot); radar(snapshot.radar_scores); updateSpeech(); renderRecord(snapshot);
     $$('.report .paper-bottom span').forEach(el=>{el.textContent=(snapshot.reports?.length?'可查看':'未获取');});
   }
   async function execute(content) {
@@ -549,7 +747,7 @@
     select.onchange();
   }
   const tools=element('div',undefined,'scene-tools');
-  [['接诊记录',showLog],['报告',()=>showReports()],['结案报告',evaluation],['AI 配置',settings]].forEach(([text,fn])=>{const b=element('button',text);b.onclick=fn;tools.append(b);});
+  [['接诊记录',showLog],['病历记录',openRecord],['说明书',openManual],['报告',()=>showReports()],['结案报告',evaluation],['AI 配置',settings]].forEach(([text,fn])=>{const b=element('button',text);b.onclick=fn;tools.append(b);});
   ($('.work-header') || $('.hud')).append(tools);
   interactive($('.monitor-label'),()=>{location.href='/static/workstation.html';},'打开工作站');
   // The monitor illustration itself is a hit target as well.
@@ -564,11 +762,13 @@
   });
   addEventListener('keydown',e=>{
     const tag=document.activeElement?.tagName;
-    const modalOpen=!!$('.scene-disclaimer-modal')?.open;
     if(e.isComposing||e.ctrlKey||e.metaKey||e.altKey||document.activeElement?.isContentEditable)return;
-    if(e.key==='Escape'&&!dialog.open&&!modalOpen&&workstation&& !['INPUT','TEXTAREA','SELECT'].includes(tag))location.href='/static/reception.html';
-    if(!workstation && e.key.toLowerCase()==='e' && !dialog.open && !modalOpen && !['INPUT','TEXTAREA','SELECT'].includes(tag)) location.href='/static/workstation.html';
-    if(!workstation && /^[1-5]$/.test(e.key) && !dialog.open && !modalOpen && !['INPUT','TEXTAREA','SELECT'].includes(tag)) setTab(Number(e.key)-1);
+    // 有任一 modal（免责声明 / 说明书 / 通用弹窗）开着时，快捷键交给该 modal 自己处理：
+    // 否则 Esc 会一边关窗一边跳页。
+    if(anyModalOpen()||['INPUT','TEXTAREA','SELECT'].includes(tag))return;
+    if(e.key==='Escape'&&workstation)location.href='/static/reception.html';
+    if(!workstation && e.key.toLowerCase()==='e') location.href='/static/workstation.html';
+    if(!workstation && /^[1-5]$/.test(e.key)) setTab(Number(e.key)-1);
   });
   addEventListener('beforeunload',()=>{stopped=true;clearTimeout(reconnectTimer);clearTimeout(speechTimer);clearInterval(staleTimer);clearInterval(emotionTimer);ws?.close();});
   async function initialize() {
@@ -586,7 +786,9 @@
   // Keep the visual draft's unknown history consistent with the case engine.
   const history=$('.record-row.history .value');if(history)history.textContent='高血压病史，具体年限与用药待问诊。';
   const familySpeech=$('.speech.family p');if(familySpeech)familySpeech.textContent='他平时有高血压，具体用药情况还需要问他。';
+  ensureManual();
   ensureDisclaimer();
+  renderRecord(snapshot);
   startEmotionTicker();
   initialize().catch(e=>toast(`服务连接失败：${e.message}。请使用 start.cmd 启动后访问页面。`,true));
 })();
