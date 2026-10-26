@@ -124,6 +124,7 @@ ClinMind-AI-1/
 ├── start.cmd                       # Windows 双击启动入口
 ├── start.ps1                       # 自动创建环境并启动服务
 ├── 使用说明.md                     # 运行说明
+├── 需求规格说明-v2.md              # 需求补充：冲突裁决、数值与状态机、内容规格、验收标准
 ├── README.md                       # 项目说明
 ├── design/ui-concepts/             # 设计交付物：场景原型、渲染图、设计说明与渲染脚本
 └── aic_mech/
