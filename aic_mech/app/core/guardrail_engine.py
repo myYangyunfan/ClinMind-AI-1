@@ -125,12 +125,19 @@ class GuardrailEngine:
                 "stool_routine": ["大便", "粪便", "便常规", "stool"],
                 "urine_routine": ["尿常规", "尿液", "urine"],
                 "peak_flow": ["峰流速", "呼气峰流速", "peak flow"],
-                "blood_gas": ["血气", "blood gas"],
+                "blood_gas": ["血气", "blood gas", "abg"],
                 "fingerstick_glucose": ["血糖", "指尖血糖", "glucose"],
                 "ecg_12lead": ["心电图", "ecg", "12导联"],
                 "abdominal_ultrasound": ["腹部超声", "腹部彩超", "ultrasound"],
             }.get(key, [])
-            if any(alias in name for alias in aliases) or any(alias in haystack for alias in aliases):
+            # 匹配只能用「医嘱文本」去比。旧实现在这里多了一个
+            # `any(alias in haystack ...)`：haystack 是报告自己的名字，
+            # 与查询无关，于是只要某份报告名字里含「血气」，任何检验医嘱
+            # 都会返回它（含胸痛的 18 导联心电图）。见 spec/04 §8 C-17。
+            matched = any(alias in name for alias in aliases)
+            if not matched and not aliases and haystack:
+                matched = bool(name) and name in haystack
+            if matched:
                 rep = dict(report)
                 rep.setdefault("item_name", key)
                 rep.setdefault("modality", "LAB")

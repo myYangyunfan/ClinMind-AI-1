@@ -11,12 +11,23 @@
     "age": 19,
     "occupation": "美术学院大二学生",
     "past_history": "支气管哮喘病史8年，平时规律使用控制药物；对尘螨、花粉过敏；养猫（宿舍不许，养在画室）",
-    "family_companion": "同寝室同学（帮忙背着画箱）"
+    "family_companion": "同寝室同学（帮忙背着画箱）",
+    "medication_history": [
+      "布地奈德福莫特罗吸入剂 1 吸 bid（近 2 周常漏用）",
+      "沙丁胺醇气雾剂 按需（本次未随身携带）"
+    ],
+    "allergy_history": "否认药物及食物过敏；尘螨、花粉、猫毛过敏（变应原阳性）"
   },
   "initial_vitals": {
-    "hr": 110, "sbp": 124, "dbp": 78, "spo2": 93, "rr": 26, "pain_vas": 3,
+    "hr": 110,
+    "sbp": 124,
+    "dbp": 78,
+    "spo2": 93,
+    "rr": 26,
+    "pain_vas": 3,
     "ecg_rhythm": "窦性心动过速",
-    "consciousness": "神志清楚，呼吸急促，讲话成短句（中度发作标志），无发绀"
+    "consciousness": "神志清楚，呼吸急促，讲话成短句（中度发作标志），无发绀",
+    "temperature_c": 36.8
   },
   "physical_exam_findings": {
     "general": "端坐位、双手撑膝（三脚架位），呼气相延长，双肺满布哮鸣音（哨笛音）；无湿啰音、无粉红色泡沫痰、双肺呼吸音对称",
@@ -46,8 +57,18 @@
   "game_extensions": {
     "short_intro": "文静的美术生喘到只能讲短句，画室里的猫和扬起的灰尘是元凶——考你“呼气性呼吸困难+哮鸣音”的识别，以及绝对不能碰的两类禁药。",
     "symptoms": {
-      "unique": ["呼气性呼吸困难（呼气相延长）", "双肺哮鸣音（哨笛音）", "端坐撑膝体位", "哮喘病史+过敏原接触（猫/扬尘）"],
-      "shared": ["咳嗽", "胸闷", "心率增快", "夜间/接触诱因后加重"]
+      "unique": [
+        "呼气性呼吸困难（呼气相延长）",
+        "双肺哮鸣音（哨笛音）",
+        "端坐撑膝体位",
+        "哮喘病史+过敏原接触（猫/扬尘）"
+      ],
+      "shared": [
+        "咳嗽",
+        "胸闷",
+        "心率增快",
+        "夜间/接触诱因后加重"
+      ]
     },
     "decoy_diagnoses": [
       {
@@ -66,7 +87,12 @@
         "differentiation": "COPD：中老年+长期吸烟史+慢性咳痰多年；本例年轻+哮喘病史+明确诱因"
       }
     ],
-    "required_exams": ["肺部听诊（哮鸣音/湿啰音/呼吸音对称性）", "SpO₂监测", "峰流速PEF测定", "问诊过敏原接触史"],
+    "required_exams": [
+      "肺部听诊（哮鸣音/湿啰音/呼吸音对称性）",
+      "SpO₂监测",
+      "峰流速PEF测定",
+      "问诊过敏原接触史"
+    ],
     "redundant_exams_hint": "心电图、胸片在稳定期属辅助，过度检查延误吸入治疗会扣急救处置分",
     "confirmed_diagnosis": "支气管哮喘急性发作（中度）",
     "treatment_plan": {
@@ -78,9 +104,21 @@
         "5. 复评：15–20分钟后复测PEF与SpO₂，无改善或重度化→升级转诊"
       ],
       "medications": [
-        {"name": "沙丁胺醇气雾剂", "usage": "2喷吸入，20分钟后可重复（≤3次/小时）", "purpose": "快速支气管扩张（救命第一步）"},
-        {"name": "布地奈德混悬液", "usage": "雾化吸入", "purpose": "气道抗炎"},
-        {"name": "泼尼松片", "usage": "短期口服（医师评估后）", "purpose": "全身抗炎，防止复发"}
+        {
+          "name": "沙丁胺醇气雾剂",
+          "usage": "2喷吸入，20分钟后可重复（≤3次/小时）",
+          "purpose": "快速支气管扩张（救命第一步）"
+        },
+        {
+          "name": "布地奈德混悬液",
+          "usage": "雾化吸入",
+          "purpose": "气道抗炎"
+        },
+        {
+          "name": "泼尼松片",
+          "usage": "短期口服（医师评估后）",
+          "purpose": "全身抗炎，防止复发"
+        }
       ],
       "contraindications": [
         "❌ β受体阻滞剂（普萘洛尔等）：诱发支气管痉挛，哮喘患者禁用",
@@ -89,7 +127,12 @@
         "❌ 让患者平卧（加重呼吸困难）"
       ]
     },
-    "nursing_plan": ["床旁陪护、安抚情绪（情绪激动加重发作）", "指导正确吸入技术（深慢吸气+屏气10秒）", "去除诱因：远离猫/尘螨/花粉，晒洗被褥", "出院教育：随身携带缓解药物、写哮喘日记、规律随访"],
+    "nursing_plan": [
+      "床旁陪护、安抚情绪（情绪激动加重发作）",
+      "指导正确吸入技术（深慢吸气+屏气10秒）",
+      "去除诱因：远离猫/尘螨/花粉，晒洗被褥",
+      "出院教育：随身携带缓解药物、写哮喘日记、规律随访"
+    ],
     "persona": {
       "personality": "文静内向、容易紧张，越喘越慌、越慌越喘；礼貌到呼吸困难还在说“谢谢”",
       "tone": "短句、气声、轻柔，带着不好意思",
@@ -97,12 +140,54 @@
     },
     "backstory": "陈小雨在画室赶作业，顺手抱了一下午的猫，又大扫除扬起满屋灰尘。傍晚开始“吸不进去气”，连喜欢的歌都哼不完整。同学背着她冲进诊室时，她怀里还抱着那只颜料斑斑的速写本。她最怕的是“给同学添麻烦”。治好她的关键：先用药让她喘上气，再温柔地告诉她——画室的那只猫，也许得换个主人了。",
     "animation_states": [
-      {"state": "idle_normal", "name": "正常站姿（轻喘）", "frames": 6, "loop": true, "trigger": "接诊默认", "desc": "站姿单薄，肩部随呼吸明显起伏，速写本抱在胸前"},
-      {"state": "tripod_sit", "name": "撑膝端坐位", "frames": 5, "loop": true, "trigger": "中度发作显现", "desc": "双手撑膝、肩胛耸起（三脚架呼吸），胸口大幅度起伏"},
-      {"state": "shoulder_breath", "name": "抬肩呼气", "frames": 6, "loop": true, "trigger": "问诊症状", "desc": "呼气相拉长、嘴唇噘起吹气（缩唇呼吸），锁骨凹陷表现"},
-      {"state": "use_inhaler", "name": "使用吸入剂", "frames": 7, "loop": false, "trigger": "正确治疗执行", "desc": "摇匀气雾剂→按压+深慢吸气→屏气→缓慢吐气，肩部起伏逐渐平缓"},
-      {"state": "anxious_fidget", "name": "紧张绞手指", "frames": 4, "loop": true, "trigger": "问诊既往史/情绪安抚前", "desc": "低头绞着速写本背带，睫毛低垂，不敢直视"},
-      {"state": "cured_relief", "name": "治愈·长舒气", "frames": 6, "loop": false, "trigger": "治疗完成", "desc": "深吸一口气缓缓吐出，肩膀完全放松，露出浅浅的笑，抱紧速写本鞠躬"}
+      {
+        "state": "idle_normal",
+        "name": "正常站姿（轻喘）",
+        "frames": 6,
+        "loop": true,
+        "trigger": "接诊默认",
+        "desc": "站姿单薄，肩部随呼吸明显起伏，速写本抱在胸前"
+      },
+      {
+        "state": "tripod_sit",
+        "name": "撑膝端坐位",
+        "frames": 5,
+        "loop": true,
+        "trigger": "中度发作显现",
+        "desc": "双手撑膝、肩胛耸起（三脚架呼吸），胸口大幅度起伏"
+      },
+      {
+        "state": "shoulder_breath",
+        "name": "抬肩呼气",
+        "frames": 6,
+        "loop": true,
+        "trigger": "问诊症状",
+        "desc": "呼气相拉长、嘴唇噘起吹气（缩唇呼吸），锁骨凹陷表现"
+      },
+      {
+        "state": "use_inhaler",
+        "name": "使用吸入剂",
+        "frames": 7,
+        "loop": false,
+        "trigger": "正确治疗执行",
+        "desc": "摇匀气雾剂→按压+深慢吸气→屏气→缓慢吐气，肩部起伏逐渐平缓"
+      },
+      {
+        "state": "anxious_fidget",
+        "name": "紧张绞手指",
+        "frames": 4,
+        "loop": true,
+        "trigger": "问诊既往史/情绪安抚前",
+        "desc": "低头绞着速写本背带，睫毛低垂，不敢直视"
+      },
+      {
+        "state": "cured_relief",
+        "name": "治愈·长舒气",
+        "frames": 6,
+        "loop": false,
+        "trigger": "治疗完成",
+        "desc": "深吸一口气缓缓吐出，肩膀完全放松，露出浅浅的笑，抱紧速写本鞠躬"
+      }
     ],
     "dialogue_layers": {
       "greeting": [
@@ -155,5 +240,490 @@
       "after_inhaler": "【状态提示】哮鸣音减弱 · SpO₂回升95% · 能讲完整句 —— 起效，继续观察",
       "cured": "【状态提示】呼吸平稳 · PEF回升>70% —— 达标，做好宣教防复发"
     }
+  },
+  "present_illness": {
+    "onset": "2 小时前傍晚起病，抱猫一下午后大扫除扬尘，约 20 分钟后出现喘憋并逐渐加重",
+    "character": "呼气性呼吸困难，呼气相明显延长，伴双肺哨笛样哮鸣音，讲话只能成短句",
+    "radiation": "无放射痛，胸闷位于胸骨后，与呼吸动作相关",
+    "trigger": "画室抱猫一下午 + 大扫除扬尘，诱因明确",
+    "relief": "端坐位、双手撑膝后稍缓解，平卧时明显加重"
+  },
+  "risk_factors": [
+    "支气管哮喘病史 8 年",
+    "尘螨、花粉、猫毛过敏史",
+    "近 2 周赶画展熬夜、控制药物频繁漏用",
+    "画室养猫且长期积尘，过敏原持续暴露",
+    "本次未随身携带缓解用气雾剂"
+  ],
+  "key_positives": [
+    "呼气相延长，双肺满布哮鸣音",
+    "端坐撑膝三脚架位，讲话只能成短句",
+    "PEF 260 L/min，仅为个人最佳值 420 的 62%"
+  ],
+  "key_negatives": [
+    "双肺未闻及湿啰音，无粉红色泡沫痰",
+    "双肺呼吸音对称，无一侧呼吸音消失"
+  ],
+  "inquiry_points": [
+    "询问呼吸困难是吸气性还是呼气性",
+    "询问起病诱因与过敏原接触史（宠物、粉尘、花粉）",
+    "询问哮喘病程、控制药物使用与近期漏药情况",
+    "询问痰液性状（干咳还是有痰，有无粉红色泡沫痰）",
+    "询问能否平卧、夜间是否被憋醒",
+    "询问本次发作后是否已用缓解药物及其效果",
+    "询问有无发热、胸痛及下肢水肿（鉴别感染与心衰）",
+    "询问既往史、用药史与药物过敏史（尤其阿司匹林与 β 受体阻滞剂）"
+  ],
+  "differentials": [
+    {
+      "name": "急性左心衰（心源性哮喘）",
+      "why_support": "同样表现为呼吸困难、双肺可闻及音乐样音、强迫端坐位",
+      "why_not": "本例 19 岁、有 8 年哮喘史与明确过敏原接触，双肺为哮鸣音（干啰音）而非湿啰音，无粉红色泡沫痰、无下肢水肿、无奔马律"
+    },
+    {
+      "name": "自发性气胸",
+      "why_support": "同样有突发呼吸困难与胸闷",
+      "why_not": "双肺呼吸音对称、满布哮鸣音，无一侧呼吸音消失或叩诊鼓音，不支持气胸"
+    },
+    {
+      "name": "COPD 急性加重",
+      "why_support": "同样为呼气性呼吸困难伴哮鸣音",
+      "why_not": "COPD 多见于中老年长期吸烟者且有多年慢性咳痰史；本例 19 岁、无吸烟史、以过敏原接触为明确诱因"
+    }
+  ],
+  "emotion_scripts": {
+    "E1_CONSULT": {
+      "high": "医生……我喘不上气，从下午开始的……对不起，麻烦你了。",
+      "mid": "医生……我、呼不出去……胸口有哨笛的声音，你听……",
+      "low": "你们……能不能快点……我真的……吸不进去了……"
+    },
+    "E2_PAIN_DETAIL": {
+      "high": "下午抱了画室的猫，又大扫除，好多灰。以前一碰猫毛就这样，今天没带药。",
+      "mid": "呼气……呼不出去。咳嗽是干的，没痰。胸口这里发紧。",
+      "low": "别问了……我说话都费劲……先给我点药行不行……"
+    },
+    "E3_PHYSICAL": {
+      "high": "好……您听吧。我坐着能好一点，躺下就更喘。",
+      "mid": "听……听吧。医生，我这个……是不是很严重？",
+      "low": "别让我躺下……一躺平我就喘不上来气，坐着才好一点……"
+    },
+    "E4_WAIT_LAB": {
+      "high": "我等。您先给我吸上药，我就在这儿坐着，不动。",
+      "mid": "还要等……多久啊？我感觉胸口越来越紧了。",
+      "low": "等什么等……我都要喘死了，你们还在等……"
+    },
+    "E5_RX": {
+      "high": "吸进去了……气道好像开了一点，谢谢您一直陪着我说话。",
+      "mid": "好一点了……那个哨子声小了。医生，我以后是不是得天天吸药？",
+      "low": "这个不管用……还是喘……你们是不是没给我用对药……"
+    },
+    "E6_PRE_OUTCOME": {
+      "high": "谢谢医生。我决定了，把猫送回老家让奶奶养，药我也随身带着。",
+      "mid": "那我先回去……要是晚上又喘起来，我再来行吗？",
+      "low": "我不想治了……反正也治不好……让我同学来接我走吧。"
+    }
+  },
+  "exam_options": [
+    {
+      "exam_id": "PE_LUNG_AUSCULTATION",
+      "name": "双肺听诊（哮鸣音与呼吸音对称性）",
+      "match_keywords": [
+        "双肺听诊",
+        "哮鸣音",
+        "呼吸音",
+        "听诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "双肺呼吸音清，未闻及干湿啰音及哮鸣音，双侧对称。",
+        "abnormal": "双肺满布哮鸣音，呼气相明显延长，未闻及湿啰音；双肺呼吸音对称，无局部减弱。"
+      },
+      "clinical_point": "60 秒内分清干啰音与湿啰音，是本例与心源性哮喘之间最便宜的一刀。"
+    },
+    {
+      "exam_id": "PE_RESP_WORK",
+      "name": "一般情况与呼吸做功评估",
+      "match_keywords": [
+        "一般情况",
+        "呼吸做功",
+        "查体"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "呼吸平稳，RR 16 次/分，可完整成句，无三凹征。",
+        "abnormal": "端坐位、双手撑膝，RR 26 次/分，讲话成短句，可见轻度三凹征，口唇无发绀。"
+      },
+      "clinical_point": "「能不能讲完整一句话」比 SpO₂ 更早反映通气储备。"
+    },
+    {
+      "exam_id": "PE_CARDIO",
+      "name": "心脏听诊（心音与颈静脉）",
+      "match_keywords": [
+        "心脏听诊",
+        "心音",
+        "颈静脉",
+        "听诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "心率 110 次/分，律齐，各瓣膜区未闻及杂音，无奔马律，颈静脉无充盈。",
+        "abnormal": "心率 110 次/分，律齐，各瓣膜区未闻及杂音，无奔马律，颈静脉无充盈。"
+      },
+      "clinical_point": "关键阴性：无奔马律、无颈静脉充盈，基本可以把心源性哮喘排除。"
+    },
+    {
+      "exam_id": "PE_SKIN_EYE",
+      "name": "全身皮肤与口唇视诊",
+      "match_keywords": [
+        "皮肤视诊",
+        "口唇",
+        "视诊"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "口唇无发绀，无皮疹及荨麻疹，球结膜无水肿。",
+        "abnormal": "口唇无发绀，无皮疹及荨麻疹，球结膜无水肿。"
+      },
+      "clinical_point": "无荨麻疹与血管性水肿，说明尚未进入全身过敏反应通道。"
+    },
+    {
+      "exam_id": "PE_LEG_EDEMA",
+      "name": "下肢水肿触诊",
+      "match_keywords": [
+        "下肢水肿",
+        "胫前",
+        "触诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "双下肢无凹陷性水肿，双小腿周径对称。",
+        "abnormal": "双下肢无凹陷性水肿，双小腿周径对称。"
+      },
+      "clinical_point": "下肢水肿是心衰的旁证，阴性可再压低一次心源性可能。"
+    }
+  ],
+  "lab_panels": [
+    {
+      "panel_id": "LAB_PEF",
+      "name": "呼气峰流速 (PEF)",
+      "alias": [
+        "峰流速",
+        "呼气峰流速",
+        "peak flow"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 60,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "PEF 260 L/min（个人最佳值 420 L/min 的 62%）",
+      "ref_range": "≥80% 个人最佳值为控制良好，60–80% 为中度发作",
+      "conclusion": "PEF 占预计值 60–80%，符合中度急性发作。",
+      "clinical_hint": "每 15–20 分钟复测一次，趋势比单次绝对值更有价值。"
+    },
+    {
+      "panel_id": "LAB_BLOOD_GAS",
+      "name": "血气分析",
+      "alias": [
+        "血气",
+        "blood gas",
+        "二氧化碳分压"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 600,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": true,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "pH 7.46，PaO2 68 mmHg，PaCO2 32 mmHg，HCO3⁻ 22 mmol/L，乳酸 1.6 mmol/L",
+      "ref_range": "pH 7.35–7.45，PaO2 80–100 mmHg，PaCO2 35–45 mmHg",
+      "conclusion": "低氧血症伴呼吸性碱中毒，PaCO2 尚未升高，提示尚未进入呼吸肌疲劳。",
+      "clinical_hint": "哮喘恶化最危险的信号是 PaCO2 从低值「回到正常」——那意味着快要喘不动了。"
+    },
+    {
+      "panel_id": "IMG_CHEST_XRAY",
+      "name": "胸部 X 线正位片",
+      "alias": [
+        "胸片",
+        "cxr",
+        "胸部x线"
+      ],
+      "modality": "IMAGING",
+      "tat_seconds": 300,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": true,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "双肺透亮度略增高，肺纹理增多，未见实变影及气胸线；心影大小形态正常，肋膈角锐利",
+      "ref_range": "—",
+      "conclusion": "无实变、无气胸，符合哮喘急性发作的过度充气表现。",
+      "clinical_hint": "胸片的作用是排除气胸与肺炎，不是诊断哮喘——先吸入再拍片。"
+    },
+    {
+      "panel_id": "LAB_CBC",
+      "name": "急诊血常规 (CBC)",
+      "alias": [
+        "血常规",
+        "cbc",
+        "嗜酸性粒细胞"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": true,
+      "decision_window": "BEYOND_CLOCK",
+      "result_text": "WBC 11.2×10⁹/L，中性粒细胞 62%，嗜酸性粒细胞 0.52×10⁹/L（8.4%），Hb 128 g/L",
+      "ref_range": "WBC 3.5–9.5×10⁹/L，嗜酸性粒细胞 0.02–0.52×10⁹/L",
+      "conclusion": "白细胞轻度升高，嗜酸性粒细胞处于正常高限，符合过敏体质背景。",
+      "clinical_hint": "白细胞高不等于感染——哮喘急性发作本身也会因应激轻度升高。"
+    },
+    {
+      "panel_id": "LAB_FENO",
+      "name": "呼出气一氧化氮 (FeNO)",
+      "alias": [
+        "feno",
+        "呼出气一氧化氮",
+        "一氧化氮"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 600,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "FeNO 62 ppb",
+      "ref_range": "<25 ppb 正常，25–50 ppb 提示嗜酸性气道炎症",
+      "conclusion": "显著升高，提示嗜酸性气道炎症活跃，支持哮喘诊断。",
+      "clinical_hint": "FeNO 高只说明气道在过敏发炎，不说明这次发作有多重。"
+    },
+    {
+      "panel_id": "LAB_BDT",
+      "name": "支气管舒张试验（肺功能）",
+      "alias": [
+        "支气管舒张试验",
+        "肺功能",
+        "fev1"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 1800,
+      "is_key": false,
+      "is_gold_standard": true,
+      "is_trap": false,
+      "decision_window": "BEYOND_CLOCK",
+      "result_text": "吸入沙丁胺醇 400 µg 后 15 分钟：FEV1 由 1.42 L 升至 1.86 L，改善率 31%，绝对值增加 440 mL",
+      "ref_range": "FEV1 改善 ≥12% 且绝对值增加 ≥200 mL 为阳性",
+      "conclusion": "支气管舒张试验阳性，支持支气管哮喘的诊断。",
+      "clinical_hint": "这是确诊哮喘的金标准，但要 1800 秒；急性发作期靠 SpO₂、PEF 与听诊先处理。"
+    }
+  ],
+  "prescription_rules": [
+    {
+      "rule_id": "RX_SALBUTAMOL",
+      "drug_name": "硫酸沙丁胺醇气雾剂",
+      "match_keywords": [
+        "沙丁胺醇",
+        "salbutamol",
+        "万托林"
+      ],
+      "verdict": "TARGET",
+      "dose": "100 µg/喷，2 喷经储雾罐吸入",
+      "route": "雾化",
+      "frequency": "20 分钟后可重复，1 小时内最多 3 次，之后按需每 4–6 小时",
+      "target": "PEF 回升至个人最佳值 70% 以上，RR <22 次/分",
+      "consequence_text": "β₂ 受体激动直接舒张支气管平滑肌，是急性发作的第一顺位处置。",
+      "score_delta": 0.05
+    },
+    {
+      "rule_id": "RX_BUDESONIDE",
+      "drug_name": "吸入用布地奈德混悬液",
+      "match_keywords": [
+        "布地奈德",
+        "budesonide",
+        "雾化激素"
+      ],
+      "verdict": "SUPPORTIVE",
+      "dose": "1 mg 雾化吸入",
+      "route": "雾化",
+      "frequency": "每 12 小时 1 次，连用 3 天",
+      "target": "—",
+      "consequence_text": "局部抗炎，减轻气道黏膜水肿，降低近期复发率。",
+      "score_delta": 0.03
+    },
+    {
+      "rule_id": "RX_PREDNISONE",
+      "drug_name": "泼尼松片",
+      "match_keywords": [
+        "泼尼松",
+        "prednisone",
+        "强的松"
+      ],
+      "verdict": "SUPPORTIVE",
+      "dose": "30 mg 口服",
+      "route": "口服",
+      "frequency": "每日 1 次晨服，连用 5 天",
+      "target": "—",
+      "consequence_text": "全身抗炎，降低 7 天内复发与住院风险。",
+      "score_delta": 0.03
+    },
+    {
+      "rule_id": "RX_ANTIBIOTIC_CEF",
+      "drug_name": "头孢呋辛酯片",
+      "match_keywords": [
+        "头孢",
+        "头孢呋辛",
+        "cefuroxime",
+        "抗生素"
+      ],
+      "verdict": "WARN_ONLY",
+      "dose": "0.25 g 口服",
+      "route": "口服",
+      "frequency": "每日 2 次，连用 5 天",
+      "target": "—",
+      "prerequisite": "中性粒细胞 >80% 或胸片见实变影或咳脓性痰",
+      "consequence_text": "本例 WBC 11.2×10⁹/L 属应激性升高、胸片无实变，无抗生素指征；前提不成立时开具按无指征用药扣分。",
+      "score_delta": -0.08
+    },
+    {
+      "rule_id": "RX_RED_LINE_NSAID",
+      "drug_name": "阿司匹林肠溶片",
+      "match_keywords": [
+        "阿司匹林",
+        "aspirin"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "LETHAL",
+      "dose": "300 mg 口服 单次",
+      "route": "口服",
+      "frequency": "单次即触发",
+      "target": "—",
+      "consequence_text": "阿司匹林等非甾体抗炎药经 COX-1 抑制可触发阿司匹林加重性呼吸疾病（AERD），在哮喘患者中引起致死性支气管痉挛与喉头水肿。",
+      "score_delta": -0.2
+    },
+    {
+      "rule_id": "RX_RED_LINE_ANTICOAG",
+      "drug_name": "肝素钠注射液",
+      "match_keywords": [
+        "肝素",
+        "heparin"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "HARMFUL",
+      "dose": "5000 U 静脉推注 单次",
+      "route": "静脉推注",
+      "frequency": "单次即触发",
+      "target": "—",
+      "consequence_text": "无抗凝指征的抗凝对哮喘发作毫无帮助；气道黏膜已高度充血，抗凝会显著增加咯血与气道内出血风险，加重通气障碍。",
+      "score_delta": -0.2
+    }
+  ],
+  "outcomes": {
+    "A": {
+      "code": "A",
+      "label": "治愈/稳定",
+      "condition": "!has_red_line && SpO2 >= 95 && RR < 22 && trust >= 0.20",
+      "title": "三喷之后讲回整句",
+      "narration": "第二喷之后五分钟，肩胛不再耸得那么高。二十分钟复测 PEF 从 260 回到 355 L/min，SpO₂ 稳在 96%，她能一口气说完一整句话了。你做的只是先把气道打开，再告诉她：那间画室里的猫，可能得换个地方住了。",
+      "patient_line": "谢谢您……我能讲完整句子了，好久没这么顺畅地呼气。",
+      "family_line": "（同学）她刚才吓得直哭，现在总算缓过来了。",
+      "review_items": [
+        "60 秒内识别干啰音并启动吸入治疗",
+        "同步完成心源性与气胸的排除",
+        "吸入后 20 分钟复测 PEF",
+        "交代诱因回避与随身带药"
+      ],
+      "next_step": "门诊随诊，2 周后复查肺功能"
+    },
+    "B": {
+      "code": "B",
+      "label": "延误",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(SpO2 >= 95 && RR < 22 && trust >= 0.20)",
+      "title": "喘压下去了，炎症还在",
+      "narration": "沙丁胺醇让她当场舒服了不少，可你没上激素，也没安排复测。四小时后她又一次喘到只能讲短句，被同学扶着回来。支气管舒张剂打开的是气道，不是炎症——这一课她替你记下了。",
+      "patient_line": "医生……我又喘起来了，比刚才还紧。",
+      "family_line": "（同学）她回宿舍没多久就不行了，我们赶紧又跑回来。",
+      "review_items": [
+        "只用支气管舒张剂、未加抗炎治疗",
+        "未在 20 分钟后复测 PEF",
+        "未交代离院后的观察与返院指征"
+      ],
+      "next_step": "留观并加用全身激素，必要时转急诊"
+    },
+    "C": {
+      "code": "C",
+      "label": "离院",
+      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "title": "她自己走进了电梯",
+      "narration": "她说了三次「对不起，麻烦你了」，然后趁护士去拿雾化器的时候自己走了，说不想再给同学添麻烦。两小时后同学打来电话，说她在宿舍楼梯口坐下了，说不出完整的话。",
+      "patient_line": "对不起……我自己走就行，不麻烦你们了。",
+      "family_line": "（同学·电话）她走了？我们找了一圈才在楼梯口找到她！",
+      "review_items": [
+        "患者反复道歉时未识别其回避就医的心理",
+        "未解释检查与用药的必要性",
+        "未安排同学全程陪同"
+      ],
+      "next_step": "急诊绿色通道，立即吸入并监测 SpO₂"
+    },
+    "D": {
+      "code": "D",
+      "label": "死亡/不良事件",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "title": "一片止痛药，一次窒息",
+      "narration": "她说头痛，你顺手开了一片阿司匹林。二十分钟后哮鸣音突然消失，肺里安静得可怕，SpO₂ 掉到 78%。那不是好转，是气道几乎完全闭合的「静默肺」。肾上腺素推了两轮，插管没能改变结局。",
+      "patient_line": "（说不出话，双手抓喉，SpO₂ 78%）",
+      "family_line": "（同学）她刚才还好好的！怎么一下子就没声了？",
+      "review_items": [
+        "点名致命医嘱：给哮喘患者开具阿司匹林",
+        "未复习既往史中的哮喘与 AERD 风险",
+        "哮鸣音消失被误判为好转"
+      ],
+      "next_step": "气道急症处理失败后的死亡讨论"
+    }
+  },
+  "knowledge_card": {
+    "title": "喘不上气时先开气道，再找原因",
+    "items": [
+      {
+        "no": 1,
+        "title": "短句就是中度",
+        "one_liner": "能讲完整句是轻度，只能讲短句是中度，说不出话是重度。",
+        "pitfall": "常见误区：只看 SpO₂，93% 时气道可能已经很窄。"
+      },
+      {
+        "no": 2,
+        "title": "干啰音与湿啰音",
+        "one_liner": "哮鸣音是干啰音，来自气道痉挛；湿啰音来自肺泡积液，病因完全不同。",
+        "pitfall": "常见误区：听到「肺里有声音」就当成同一类问题。"
+      },
+      {
+        "no": 3,
+        "title": "静默肺是恶化",
+        "one_liner": "哮鸣音突然消失伴 SpO₂ 下降，意味着气流几乎消失，不是好转。",
+        "pitfall": "常见误区：把「肺里安静了」当成病情缓解。"
+      },
+      {
+        "no": 4,
+        "title": "阿司匹林可致命",
+        "one_liner": "AERD 型哮喘患者服用阿司匹林或 NSAIDs 可诱发致死性支气管痉挛。",
+        "pitfall": "常见误区：以为退烧止痛药对所有人都安全。"
+      },
+      {
+        "no": 5,
+        "title": "β 阻滞剂要避开",
+        "one_liner": "普萘洛尔等非选择性 β 受体阻滞剂阻断 β₂，可直接诱发哮喘发作。",
+        "pitfall": "常见误区：只记得 β 阻滞剂能降压，忘了它对气道的副作用。"
+      }
+    ]
   }
 }

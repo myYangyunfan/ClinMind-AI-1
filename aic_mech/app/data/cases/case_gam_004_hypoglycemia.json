@@ -11,12 +11,24 @@
     "age": 68,
     "occupation": "退休机床厂车间主任",
     "past_history": "2型糖尿病12年，口服格列本脲+二甲双胍；高血压8年（服药控制可）；烟酒已戒",
-    "family_companion": "老伴（正在赶来的路上，电话里直着急）"
+    "family_companion": "老伴（正在赶来的路上，电话里直着急）",
+    "medication_history": [
+      "格列本脲片 5 mg 每日 2 次（今晨已服）",
+      "盐酸二甲双胍片 0.5 g 每日 3 次",
+      "苯磺酸氨氯地平片 5 mg 每日 1 次"
+    ],
+    "allergy_history": "否认药物及食物过敏"
   },
   "initial_vitals": {
-    "hr": 102, "sbp": 138, "dbp": 84, "spo2": 97, "rr": 18, "pain_vas": 1,
+    "hr": 102,
+    "sbp": 138,
+    "dbp": 84,
+    "spo2": 97,
+    "rr": 18,
+    "pain_vas": 1,
     "ecg_rhythm": "窦性心动过速",
-    "consciousness": "神志清楚但反应迟钝，对答切题但缓慢，时间定向稍差，情绪烦躁，皮肤湿冷多汗"
+    "consciousness": "神志清楚但反应迟钝，对答切题但缓慢，时间定向稍差，情绪烦躁，皮肤湿冷多汗",
+    "temperature_c": 36.5
   },
   "physical_exam_findings": {
     "general": "皮肤湿冷、大汗（冷汗），双手细震颤；瞳孔等大等圆、对光反射正常；无口角歪斜、无肢体偏瘫、无病理征（教学点：无局灶神经体征）；心律齐，双肺呼吸音清",
@@ -46,8 +58,18 @@
   "game_extensions": {
     "short_intro": "固执大爷晨练晕乎乎还嘴硬要回家，像中风却不是中风——考你想不想得起先测那一滴指尖血糖。",
     "symptoms": {
-      "unique": ["冷汗+手抖+心悸+饥饿感（低血糖四联）", "降糖药服用后未进餐", "指尖血糖2.6 mmol/L", "无局灶神经体征（无偏瘫/口角歪斜）"],
-      "shared": ["头晕", "乏力", "心率增快", "面色改变"]
+      "unique": [
+        "冷汗+手抖+心悸+饥饿感（低血糖四联）",
+        "降糖药服用后未进餐",
+        "指尖血糖2.6 mmol/L",
+        "无局灶神经体征（无偏瘫/口角歪斜）"
+      ],
+      "shared": [
+        "头晕",
+        "乏力",
+        "心率增快",
+        "面色改变"
+      ]
     },
     "decoy_diagnoses": [
       {
@@ -66,7 +88,12 @@
         "differentiation": "心梗：胸痛/胸闷压榨感+心电图ST-T改变；本例无心前区疼痛、心电图阴性、血糖危急值"
       }
     ],
-    "required_exams": ["指尖血糖（第一优先！）", "神志与神经系统查体（排除局灶体征）", "12导联心电图", "问诊用药与进餐史"],
+    "required_exams": [
+      "指尖血糖（第一优先！）",
+      "神志与神经系统查体（排除局灶体征）",
+      "12导联心电图",
+      "问诊用药与进餐史"
+    ],
     "redundant_exams_hint": "未测血糖就开头颅CT——扣急救处置分（顺序错误）；CT应在排除低血糖后仍有神经体征时再考虑",
     "confirmed_diagnosis": "低血糖症（降糖药相关）",
     "treatment_plan": {
@@ -79,8 +106,16 @@
         "※ 若意识不清：严禁口服喂食！立即静脉推注葡萄糖并监护"
       ],
       "medications": [
-        {"name": "葡萄糖片（或含糖饮料/方糖）", "usage": "15g，口服，15分钟后复测", "purpose": "快速升糖（一线）"},
-        {"name": "50%葡萄糖注射液", "usage": "仅意识障碍时静脉使用（游戏内为教学分支）", "purpose": "急救通道"}
+        {
+          "name": "葡萄糖片（或含糖饮料/方糖）",
+          "usage": "15g，口服，15分钟后复测",
+          "purpose": "快速升糖（一线）"
+        },
+        {
+          "name": "50%葡萄糖注射液",
+          "usage": "仅意识障碍时静脉使用（游戏内为教学分支）",
+          "purpose": "急救通道"
+        }
       ],
       "contraindications": [
         "❌ 意识不清时经口喂糖喂水——误吸窒息风险",
@@ -89,7 +124,13 @@
         "❌ 让患者“自己缓一缓”自行离院"
       ]
     },
-    "nursing_plan": ["侧卧位休息至神志完全转清，防跌倒", "监测血糖（纠正后15–30分钟复测）", "用药教育：按时进餐、药量遵医嘱勿自行加量", "随身携带糖果与糖尿病急救卡", "家属同步宣教（老伴监督管理）"],
+    "nursing_plan": [
+      "侧卧位休息至神志完全转清，防跌倒",
+      "监测血糖（纠正后15–30分钟复测）",
+      "用药教育：按时进餐、药量遵医嘱勿自行加量",
+      "随身携带糖果与糖尿病急救卡",
+      "家属同步宣教（老伴监督管理）"
+    ],
     "persona": {
       "personality": "固执要强、爱面子，一辈子“从不请假”，最怕给人添麻烦；嘴上说没事，手抖得藏不住",
       "tone": "硬朗倔强、短促命令式，理亏时声音变小",
@@ -97,12 +138,54 @@
     },
     "backstory": "赵师傅当车间主任那会儿，全厂设备检修从来第一个到。今早降糖药照常吃了，老伴蒸的包子他却嫌烫没吃，空着肚子去公园打了两套太极。半路冷汗直冒、腿下发飘，晨练的老伙计们吓坏了，七手八脚把他送来。他嘴上还念叨“下午还要去接孙女”。治好他的关键：一滴血糖见真章，再让这位“从不请假”的老师傅答应——以后吃药就必须吃饭。",
     "animation_states": [
-      {"state": "idle_normal", "name": "正常站姿（强撑硬朗）", "frames": 6, "loop": true, "trigger": "接诊默认", "desc": "挺胸背手的老干部站姿，但膝盖偶尔打颤"},
-      {"state": "cold_sweat_wipe", "name": "冷汗擦汗", "frames": 5, "loop": true, "trigger": "症状问诊", "desc": "用袖口擦额前冷汗，面色蜡黄泛白，额头高光汗珠"},
-      {"state": "hand_tremor", "name": "双手颤抖", "frames": 5, "loop": true, "trigger": "查体/伸手", "desc": "伸出双手平举，指尖高频小幅抖动，困惑地看着自己的手"},
-      {"state": "sway_dizzy", "name": "眩晕摇晃", "frames": 6, "loop": false, "trigger": "未及时处理恶化", "desc": "身体左右大幅摇摆、扶住诊桌边缘、眼神涣散"},
-      {"state": "eat_candy", "name": "吃糖块", "frames": 6, "loop": false, "trigger": "正确治疗执行", "desc": "不情愿地接受糖块→咀嚼→表情逐渐回神，脸部血色恢复"},
-      {"state": "cured_pat_chest", "name": "治愈·拍胸口", "frames": 5, "loop": false, "trigger": "治疗完成", "desc": "恢复硬朗站姿，拍拍胸口长出一口气，背手竖起大拇指"}
+      {
+        "state": "idle_normal",
+        "name": "正常站姿（强撑硬朗）",
+        "frames": 6,
+        "loop": true,
+        "trigger": "接诊默认",
+        "desc": "挺胸背手的老干部站姿，但膝盖偶尔打颤"
+      },
+      {
+        "state": "cold_sweat_wipe",
+        "name": "冷汗擦汗",
+        "frames": 5,
+        "loop": true,
+        "trigger": "症状问诊",
+        "desc": "用袖口擦额前冷汗，面色蜡黄泛白，额头高光汗珠"
+      },
+      {
+        "state": "hand_tremor",
+        "name": "双手颤抖",
+        "frames": 5,
+        "loop": true,
+        "trigger": "查体/伸手",
+        "desc": "伸出双手平举，指尖高频小幅抖动，困惑地看着自己的手"
+      },
+      {
+        "state": "sway_dizzy",
+        "name": "眩晕摇晃",
+        "frames": 6,
+        "loop": false,
+        "trigger": "未及时处理恶化",
+        "desc": "身体左右大幅摇摆、扶住诊桌边缘、眼神涣散"
+      },
+      {
+        "state": "eat_candy",
+        "name": "吃糖块",
+        "frames": 6,
+        "loop": false,
+        "trigger": "正确治疗执行",
+        "desc": "不情愿地接受糖块→咀嚼→表情逐渐回神，脸部血色恢复"
+      },
+      {
+        "state": "cured_pat_chest",
+        "name": "治愈·拍胸口",
+        "frames": 5,
+        "loop": false,
+        "trigger": "治疗完成",
+        "desc": "恢复硬朗站姿，拍拍胸口长出一口气，背手竖起大拇指"
+      }
     ],
     "dialogue_layers": {
       "greeting": [
@@ -154,5 +237,490 @@
       "after_sugar": "【状态提示】血糖2.6→4.6 mmol/L · 出汗停止 · 对答流利 —— 纠正成功，记得追正餐",
       "cured": "【状态提示】神志清 · 血糖稳定 · 宣教完成 —— 用药吃饭铁律已立，安心道别"
     }
+  },
+  "present_illness": {
+    "onset": "1 小时前晨练途中起病，为服药后空腹运动约 40 分钟时出现",
+    "character": "头晕、心慌、出冷汗、双手细颤，伴反应迟钝与烦躁",
+    "radiation": "无放射痛，症状为全身性，无定位体征",
+    "trigger": "晨起服格列本脲后未进早餐即外出打太极",
+    "relief": "坐下休息后短暂缓解，未进食，症状反复加重"
+  },
+  "risk_factors": [
+    "2 型糖尿病 12 年，口服长效促泌剂格列本脲",
+    "服药后未进餐即空腹晨练",
+    "68 岁老年人，升糖激素代偿反应减弱",
+    "高血压 8 年，多药同服",
+    "独居时段外出活动，无人陪护"
+  ],
+  "key_positives": [
+    "皮肤湿冷、大汗，双手细震颤",
+    "指尖血糖 2.6 mmol/L（危急值）",
+    "反应迟钝、时间定向差，但无局灶神经体征"
+  ],
+  "key_negatives": [
+    "无口角歪斜、无肢体偏瘫，病理征阴性",
+    "12 导联心电图未见 ST-T 动态改变"
+  ],
+  "inquiry_points": [
+    "询问症状出现的具体情境与时间（是否空腹、是否运动）",
+    "询问降糖药种类、剂量与本次服药时间",
+    "询问今晨是否进餐以及进餐量",
+    "询问有无心悸、出汗、饥饿感与手抖（低血糖四联）",
+    "询问有无意识丧失、抽搐与大小便失禁",
+    "询问有无偏瘫、口角歪斜、言语含糊（鉴别卒中）",
+    "询问有无胸痛胸闷（鉴别急性心肌梗死）",
+    "询问既往低血糖发作史、用药史与药物过敏史"
+  ],
+  "differentials": [
+    {
+      "name": "急性脑卒中",
+      "why_support": "68 岁、突发头晕、反应迟钝、时间定向差",
+      "why_not": "无偏瘫、无口角歪斜、无病理征，指尖血糖 2.6 mmol/L 可完整解释全部症状；卒中不会让血糖掉到危急值"
+    },
+    {
+      "name": "急性心肌梗死",
+      "why_support": "老年人、心悸、大汗、心率增快至 102 次/分",
+      "why_not": "无胸痛胸闷，12 导联心电图无 ST-T 动态改变，心率增快可由低血糖交感兴奋解释"
+    },
+    {
+      "name": "癫痫发作后状态",
+      "why_support": "意识模糊、行为异常、反应迟钝",
+      "why_not": "无抽搐史、无舌咬伤、无尿失禁，目击者否认抽搐过程，且症状随血糖回升完全逆转"
+    }
+  ],
+  "emotion_scripts": {
+    "E1_CONSULT": {
+      "high": "大夫，我这心里突突跳得厉害，一身冷汗，您给看看是不是哪儿出毛病了。",
+      "mid": "大夫我没事儿！就是没吃早饭有点晕……缓会儿就好。",
+      "low": "我不用看！老毛病了，让我坐会儿自己就回去了，别耽误我接孙女。"
+    },
+    "E2_PAIN_DETAIL": {
+      "high": "早上降糖药吃了，包子太烫没顾上吃，就去公园打了两套太极，半路就冒冷汗了。",
+      "mid": "药是吃了……饭没吃。走得急了点，就头晕眼花。",
+      "low": "问什么问！我自己的身子我自己清楚，用不着你管！"
+    },
+    "E3_PHYSICAL": {
+      "high": "行，您查吧。手是有点抖，我按住也按不住。",
+      "mid": "查吧查吧……哎，我这手怎么抖成这样了，你看看？",
+      "low": "别碰我！我又不是瘫了，你查什么查，我不用查！"
+    },
+    "E4_WAIT_LAB": {
+      "high": "抽血就抽，我不着急。您说这结果多久能出来？",
+      "mid": "还要等啊……那我先坐这儿歇会儿，行不行？",
+      "low": "等什么等！我下午还得接孙女，你们就不能快点？"
+    },
+    "E5_RX": {
+      "high": "吃糖？行，我吃。哎……好像真缓过来了，心里那只兔子消停了。",
+      "mid": "吃糖就能好？这么简单？那我以后随身带点。",
+      "low": "让我吃糖？你这是看病还是哄小孩呢，我不吃！"
+    },
+    "E6_PRE_OUTCOME": {
+      "high": "我记住了——药一吃，饭必须吃。明儿开始，包子凉了我也吃。",
+      "mid": "那我回去注意点……要是再犯，我马上就来。",
+      "low": "行了行了，我先走了，下午还得去接孙女呢。"
+    }
+  },
+  "exam_options": [
+    {
+      "exam_id": "PE_NEURO",
+      "name": "神经系统查体（局灶体征与病理征）",
+      "match_keywords": [
+        "神经系统查体",
+        "病理征",
+        "肌力",
+        "查体"
+      ],
+      "duration_seconds": 90,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "双侧瞳孔等大等圆 3.0 mm，对光反射灵敏；四肢肌力 5 级且双侧对称；病理征阴性；无口角歪斜，言语略缓慢但清晰。",
+        "abnormal": "双侧瞳孔等大等圆 3.0 mm，对光反射灵敏；四肢肌力 5 级且双侧对称；病理征阴性；无口角歪斜，言语略缓慢但清晰。"
+      },
+      "clinical_point": "90 秒排除局灶体征，是把「卒中」从鉴别表上划掉的关键一步。"
+    },
+    {
+      "exam_id": "PE_SKIN_SWEAT",
+      "name": "全身皮肤与出汗情况视诊",
+      "match_keywords": [
+        "皮肤视诊",
+        "出汗",
+        "视诊"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "皮肤温暖干燥，无大汗，末梢温暖。",
+        "abnormal": "皮肤湿冷，额面与前胸大汗，面色苍白，四肢末梢发凉。"
+      },
+      "clinical_point": "湿冷大汗是交感兴奋的表现，低血糖和心梗都会有——要靠一滴血糖把它们分开。"
+    },
+    {
+      "exam_id": "PE_TREMOR",
+      "name": "双手震颤与精细动作查体",
+      "match_keywords": [
+        "双手震颤",
+        "精细动作",
+        "查体"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "双手平举无震颤，指鼻试验稳准。",
+        "abnormal": "双手平举可见细震颤，幅度小、频率快；指鼻试验稍欠稳准，无辨距不良。"
+      },
+      "clinical_point": "细震颤是低血糖的典型交感症状；粗大的扑翼样震颤才提示肝性脑病。"
+    },
+    {
+      "exam_id": "PE_CARDIO",
+      "name": "心脏听诊（心律与心音）",
+      "match_keywords": [
+        "心脏听诊",
+        "心音",
+        "心律",
+        "听诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "心率 102 次/分，律齐，各瓣膜区未闻及杂音，无奔马律，颈静脉无充盈。",
+        "abnormal": "心率 102 次/分，律齐，各瓣膜区未闻及杂音，无奔马律，颈静脉无充盈。"
+      },
+      "clinical_point": "律齐心音正常，把「心源性晕厥」这条支路也关掉了。"
+    },
+    {
+      "exam_id": "PE_ORTHOSTATIC_BP",
+      "name": "体位性血压查体",
+      "match_keywords": [
+        "体位性血压",
+        "卧立位",
+        "查体"
+      ],
+      "duration_seconds": 180,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "卧位 138/84 mmHg、HR 96；站立 3 分钟 132/80 mmHg、HR 106，收缩压下降 6 mmHg，无头晕加重。",
+        "abnormal": "卧位 138/84 mmHg、HR 96；站立 3 分钟 132/80 mmHg、HR 106，收缩压下降 6 mmHg，无头晕加重。"
+      },
+      "clinical_point": "阴性所见：站立 3 分钟收缩压仅降 6 mmHg，可排除体位性低血压这条支路。"
+    }
+  ],
+  "lab_panels": [
+    {
+      "panel_id": "LAB_GLUCOSE",
+      "name": "指尖血糖 (Fingerstick Glucose)",
+      "alias": [
+        "血糖",
+        "指尖血糖",
+        "glucose"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 60,
+      "is_key": true,
+      "is_gold_standard": true,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "指尖血糖 2.6 mmol/L",
+      "ref_range": "糖尿病患者 <3.9 mmol/L 即诊断低血糖；非糖尿病人群 <2.8 mmol/L",
+      "conclusion": "达到危急值，糖尿病相关低血糖诊断成立，须立即处理。",
+      "clinical_hint": "60 秒出结果，是所有「突发神志改变」的第一项检查——先测血糖，再想 CT。"
+    },
+    {
+      "panel_id": "LAB_ECG_12",
+      "name": "12 导联心电图",
+      "alias": [
+        "心电图",
+        "ecg",
+        "12导联"
+      ],
+      "modality": "ECG",
+      "tat_seconds": 120,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": true,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "窦性心动过速，心率 102 次/分，各导联未见 ST 段抬高或压低，无病理性 Q 波，QTc 438 ms",
+      "ref_range": "窦性心律，ST 段位于等电位线",
+      "conclusion": "窦性心动过速，未见缺血性 ST-T 改变。",
+      "clinical_hint": "低血糖时心率快、出汗多，很容易被当成心梗前兆——心电图阴性是排除的重要一步。"
+    },
+    {
+      "panel_id": "LAB_CBC",
+      "name": "急诊血常规 (CBC)",
+      "alias": [
+        "血常规",
+        "cbc",
+        "血红蛋白"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "WBC 7.2×10⁹/L，中性粒细胞 68%，Hb 138 g/L，PLT 198×10⁹/L",
+      "ref_range": "WBC 3.5–9.5×10⁹/L，Hb 130–175 g/L，PLT 125–350×10⁹/L",
+      "conclusion": "血常规正常，无感染或失血证据。",
+      "clinical_hint": "低血糖本身不改变血常规，查它是为了排除其他病因。"
+    },
+    {
+      "panel_id": "LAB_ELECTROLYTE_LFT",
+      "name": "血电解质与肝肾功能",
+      "alias": [
+        "电解质",
+        "lft",
+        "肝功能"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "K⁺ 3.9 mmol/L，Na⁺ 139 mmol/L，肌酐 88 µmol/L，尿素 6.1 mmol/L，ALT 24 U/L",
+      "ref_range": "K⁺ 3.5–5.3 mmol/L，肌酐 57–97 µmol/L，ALT 9–50 U/L",
+      "conclusion": "电解质与肝肾功能正常，排除肝性脑病与尿毒症性脑病。",
+      "clinical_hint": "神志改变要常规排肝肾功能，这是「不放过第二个病因」的检查。"
+    },
+    {
+      "panel_id": "IMG_HEAD_CT",
+      "name": "头颅 CT 平扫",
+      "alias": [
+        "头颅ct",
+        "head ct",
+        "脑ct"
+      ],
+      "modality": "IMAGING",
+      "tat_seconds": 600,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": true,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "双侧基底节区腔隙灶，未见高密度出血灶，未见大面积低密度梗死，中线结构居中",
+      "ref_range": "—",
+      "conclusion": "未见急性脑出血或大面积梗死，不支持急性卒中。",
+      "clinical_hint": "未测血糖就先开 CT，是本例最典型的顺序错误——CT 阴性也解释不了 2.6 的血糖。"
+    },
+    {
+      "panel_id": "LAB_HBA1C",
+      "name": "糖化血红蛋白 (HbA1c)",
+      "alias": [
+        "糖化血红蛋白",
+        "hba1c",
+        "糖化"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 1800,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "BEYOND_CLOCK",
+      "result_text": "HbA1c 7.9%",
+      "ref_range": "4.0–6.0%（糖尿病患者控制目标 <7.0%）",
+      "conclusion": "近 3 个月血糖控制未达标，提示需要重新评估降糖方案。",
+      "clinical_hint": "HbA1c 决定的是出院后的方案，不是此刻的抢救。"
+    }
+  ],
+  "prescription_rules": [
+    {
+      "rule_id": "RX_GLUCOSE_ORAL",
+      "drug_name": "葡萄糖片（15 g）",
+      "match_keywords": [
+        "葡萄糖片",
+        "葡萄糖",
+        "glucose"
+      ],
+      "verdict": "TARGET",
+      "dose": "15 g 口服（葡萄糖片 3 片或含糖饮料 150 mL）",
+      "route": "口服",
+      "frequency": "15 分钟后复测血糖，仍 <3.9 mmol/L 则重复，最多 3 轮",
+      "target": "血糖 ≥3.9 mmol/L 且神志完全转清",
+      "consequence_text": "快速吸收的碳水化合物在 10–15 分钟内升高血糖，是意识清楚患者的首选举措。",
+      "score_delta": 0.06
+    },
+    {
+      "rule_id": "RX_CARB_MEAL",
+      "drug_name": "含碳水化合物正餐",
+      "match_keywords": [
+        "正餐",
+        "加餐",
+        "主食"
+      ],
+      "verdict": "SUPPORTIVE",
+      "dose": "米饭 100 g 或等量主食 + 蛋白质 20 g",
+      "route": "口服",
+      "frequency": "血糖达标后 30 分钟内进食",
+      "target": "—",
+      "consequence_text": "格列本脲半衰期长，单靠 15 g 糖容易在 1–2 小时后再次跌落。",
+      "score_delta": 0.03
+    },
+    {
+      "rule_id": "RX_GLUCOSE_IV",
+      "drug_name": "50% 葡萄糖注射液",
+      "match_keywords": [
+        "50%葡萄糖",
+        "高渗葡萄糖",
+        "静脉葡萄糖"
+      ],
+      "verdict": "WARN_ONLY",
+      "dose": "40 mL 静脉推注",
+      "route": "静脉推注",
+      "frequency": "单次",
+      "target": "—",
+      "prerequisite": "意识障碍或无法经口吞咽",
+      "consequence_text": "本例意识清楚、能安全吞咽，口服 15 g 糖即可；前提不成立时静脉推注高渗糖属未按阶梯处置。",
+      "score_delta": -0.03
+    },
+    {
+      "rule_id": "RX_GLIBENCLAMIDE",
+      "drug_name": "格列本脲片（原剂量继续）",
+      "match_keywords": [
+        "格列本脲",
+        "glibenclamide",
+        "优降糖"
+      ],
+      "verdict": "WARN_ONLY",
+      "dose": "5 mg 口服",
+      "route": "口服",
+      "frequency": "每日 2 次，维持原方案",
+      "target": "—",
+      "prerequisite": "已进食且血糖稳定 ≥5.6 mmol/L 连续 2 天",
+      "consequence_text": "长效磺脲类促泌剂在老年人中反复诱发低血糖，本例应减量、换药或联用方案调整，而非原剂量继续。",
+      "score_delta": -0.06
+    },
+    {
+      "rule_id": "RX_RED_LINE_ANTICOAG",
+      "drug_name": "肝素钠注射液",
+      "match_keywords": [
+        "肝素",
+        "heparin"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "HARMFUL",
+      "dose": "5000 U 静脉推注 单次",
+      "route": "静脉推注",
+      "frequency": "单次即触发",
+      "target": "—",
+      "consequence_text": "把低血糖误判为急性缺血性卒中、未做影像就上抗凝，是急诊最经典的顺序错误：真实病因是低血糖时，抗凝只带来纯粹的颅内与消化道出血风险。",
+      "score_delta": -0.2
+    },
+    {
+      "rule_id": "RX_RED_LINE_ANTIPLATELET",
+      "drug_name": "阿司匹林肠溶片",
+      "match_keywords": [
+        "阿司匹林",
+        "aspirin"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "HARMFUL",
+      "dose": "300 mg 嚼服 单次",
+      "route": "口服",
+      "frequency": "单次即触发",
+      "target": "—",
+      "consequence_text": "与抗凝同理：卒中路径的「先吃药后影像」会让一个血糖 2.6 mmol/L 的患者多背一次消化道与颅内出血风险，而他的神志改变根本不需要抗血小板。",
+      "score_delta": -0.2
+    }
+  ],
+  "outcomes": {
+    "A": {
+      "code": "A",
+      "label": "治愈/稳定",
+      "condition": "!has_red_line && HR < 100 && trust >= 0.20",
+      "title": "一块糖，一条命",
+      "narration": "三片葡萄糖片下去，八分钟后他眼神就聚起来了。十五分钟复测 4.6 mmol/L，出汗停了，手也不抖了。你没有把他推进 CT 室，而是先花了六十秒测了一滴血。出院时他把「药一吃，饭必须吃」这句话连着念了两遍。",
+      "patient_line": "大夫，我服了。以后药一吃，饭必须吃，我说到做到。",
+      "family_line": "（老伴）他这人倔了一辈子，这回总算听劝了。",
+      "review_items": [
+        "先测指尖血糖再考虑影像",
+        "按 15-15 规则给药并复测",
+        "血糖达标后追加正餐",
+        "识别长效磺脲类的复发风险"
+      ],
+      "next_step": "内分泌门诊调整降糖方案，1 周后复查"
+    },
+    "B": {
+      "code": "B",
+      "label": "延误",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(HR < 100 && trust >= 0.20)",
+      "title": "血糖上来了，人还没稳",
+      "narration": "糖是给了，血糖也回到 4.2 mmol/L，可你没让他吃东西，也没提格列本脲的事。四十分钟后他又开始冒冷汗。格列本脲的药效有六到十二个小时，一次 15 g 糖根本追不上它。",
+      "patient_line": "大夫……我怎么又出汗了？刚才不是好了吗？",
+      "family_line": "（老伴）是不是药还得再吃一次？他怎么反反复复的。",
+      "review_items": [
+        "纠正后未追加正餐",
+        "未评估格列本脲的持续促泌作用",
+        "未留观复查血糖"
+      ],
+      "next_step": "留观至血糖稳定 6 小时，调整降糖方案"
+    },
+    "C": {
+      "code": "C",
+      "label": "离院",
+      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "title": "他说自己缓一会儿就好",
+      "narration": "他把手一挥，说老毛病了，缓一会儿就回去，下午还得接孙女。护士送到门口，看见他扶着墙站了很久才走。两小时后他被晨练的老伙计们抬回来，已经叫不醒了。",
+      "patient_line": "我不用查！我自己的身子我自己清楚！",
+      "family_line": "（晨练伙伴）他就坐在花坛边上，喊他也不应了。",
+      "review_items": [
+        "患者拒绝检查时未做风险沟通",
+        "未在原因未明时坚持最低限度检测",
+        "未联系家属到场"
+      ],
+      "next_step": "急诊复苏，静脉推注葡萄糖并持续监护"
+    },
+    "D": {
+      "code": "D",
+      "label": "死亡/不良事件",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "title": "先吃药，后拍片",
+      "narration": "你把他当成卒中，没做 CT 就推了一支肝素、喂了一片阿司匹林。CT 结果是腔隙灶，没有出血，也没有梗死——血是干净的，问题在血糖，2.6。凌晨他因为硬膜下血肿再次被送来，这一次 CT 上有了东西。",
+      "patient_line": "（反应迟钝）大夫……我头怎么这么疼……",
+      "family_line": "他不是低血糖吗？怎么又变成脑袋出血了？",
+      "review_items": [
+        "点名致命医嘱：未做影像即按卒中给予肝素与阿司匹林",
+        "未在给药前测血糖",
+        "顺序错误导致双重损伤"
+      ],
+      "next_step": "神经外科会诊，评估血肿清除指征"
+    }
+  },
+  "knowledge_card": {
+    "title": "突发神志改变，先测一滴血",
+    "items": [
+      {
+        "no": 1,
+        "title": "低血糖四联",
+        "one_liner": "冷汗、心悸、手抖、饥饿感，四条凑齐就该立刻测指尖血糖。",
+        "pitfall": "常见误区：把冷汗手抖当成心梗前兆，先去做心电图。"
+      },
+      {
+        "no": 2,
+        "title": "卒中的模仿者",
+        "one_liner": "低血糖可以完美模拟卒中，分水岭是有无局灶体征与血糖值。",
+        "pitfall": "常见误区：老年人神志改变一律先送 CT，排不上就一直等。"
+      },
+      {
+        "no": 3,
+        "title": "15-15 规则",
+        "one_liner": "15 g 糖，等 15 分钟，复测；不达标再来一轮，最多三轮。",
+        "pitfall": "常见误区：给了糖就以为结束，不复测也不追正餐。"
+      },
+      {
+        "no": 4,
+        "title": "格列本脲的尾巴",
+        "one_liner": "长效磺脲类药效可持续 6–12 小时，必须追一餐碳水并留观。",
+        "pitfall": "常见误区：血糖一正常就让患者回家，一小时后再发。"
+      },
+      {
+        "no": 5,
+        "title": "昏迷禁止喂食",
+        "one_liner": "不能吞咽时必须静脉推注葡萄糖，经口喂糖有误吸与窒息风险。",
+        "pitfall": "常见误区：患者昏迷了还往嘴里塞糖块、灌糖水。"
+      }
+    ]
   }
 }

@@ -2,6 +2,7 @@
   "case_id": "case_chest_pain_001",
   "title": "生死时速：突发撕裂样胸痛背后的致命陷阱 (Stanford A型主动脉夹层)",
   "difficulty": "国家级学科竞赛 (Hard / High Stakes)",
+  "difficulty_stars": 5,
   "chief_complaint": "突发剧烈胸背部撕裂样疼痛伴大汗淋漓3小时",
   "category": "急诊心血管胸痛三联征",
   "patient_profile": {
@@ -9,7 +10,12 @@
     "gender": "男",
     "age": 52,
     "occupation": "民营建筑企业负责人",
-    "past_history": "原发性高血压病史10年，最高血压曾达 200/115 mmHg。日常服药依从性极差，常自行漏服降压药；近2周因赶工期极度疲劳且擅自停药。",
+    "past_history": "原发性高血压病史10年，最高血压曾达 200/115 mmHg。日常服药依从性极差，常自行漏服降压药；近2周因赶工期极度疲劳且擅自停药。否认糖尿病、冠心病、卒中及出血性疾病史。",
+    "medication_history": [
+      "苯磺酸氨氯地平片 5 mg 每日1次（近2周自行停用）",
+      "无抗凝、抗血小板及溶栓药物使用史"
+    ],
+    "allergy_history": "否认药物及食物过敏史。",
     "family_companion": "妻子（李秀梅，50岁，极度焦虑紧张）"
   },
   "initial_vitals": {
@@ -19,6 +25,7 @@
     "spo2": 96.0,
     "rr": 22.0,
     "pain_vas": 9,
+    "temperature_c": 36.8,
     "ecg_rhythm": "Sinus Tachycardia (窦性心动过速)",
     "consciousness": "神志清楚，痛苦面容，大汗淋漓，烦躁不安"
   },
@@ -56,7 +63,7 @@
     "ecg_18_lead": {
       "item_name": "床旁18导联同步心电图",
       "modality": "ECG",
-      "report_time_seconds": 60,
+      "report_time_seconds": 120,
       "parameters": {
         "heart_rate": 105,
         "p_r_interval": "158 ms",
@@ -66,28 +73,10 @@
       "conclusion": "1. 窦性心动过速；2. 左心室高电压伴ST-T改变（V5-V6 ST段水平型压低 0.05-0.10 mV）；3. 无典型STEMI特征性弓背向上抬高，未见病理性Q波。",
       "clinical_hint": "不支持典型急性ST段抬高型心肌梗死(STEMI)，切忌先入为主误开双抗与溶栓！"
     },
-    "hs_ctni": {
-      "item_name": "急诊高敏心肌钙蛋白I (hs-cTnI)",
-      "modality": "LAB",
-      "report_time_seconds": 180,
-      "result": "0.038 ng/mL",
-      "ref_range": "0.000 - 0.040 ng/mL",
-      "status": "NORMAL_HIGHLIMIT",
-      "conclusion": "肌钙蛋白处于参考值高限临界区，未达心肌梗死3-5倍以上诊断阈值。"
-    },
-    "d_dimer": {
-      "item_name": "急诊D-二聚体定量检测 (D-Dimer)",
-      "modality": "LAB",
-      "report_time_seconds": 150,
-      "result": "8.85 mg/L FEU",
-      "ref_range": "0.00 - 0.50 mg/L FEU",
-      "status": "CRITICAL_HIGH",
-      "conclusion": "D-二聚体急剧升高达参考上限 17 倍以上！强烈提示体内存在急性大血管内膜广泛撕裂或血栓形成过程！"
-    },
     "bedside_echo": {
-      "item_name": "急诊床旁心脏超声心动图 (POCUS-Echo)",
+      "item_name": "床旁超声心动图 (POCUS)",
       "modality": "ULTRASOUND",
-      "report_time_seconds": 120,
+      "report_time_seconds": 300,
       "findings": [
         "升主动脉根部内径明显扩张增宽，内径约 46 mm；",
         "升主动脉腔内见摆动的线样低回声内膜撕裂剥离片，真假腔分离；",
@@ -97,10 +86,38 @@
       ],
       "conclusion": "升主动脉夹层（Stanford A型可能），伴主动脉瓣中度关闭不全及少量心包积血。"
     },
+    "blood_gas": {
+      "item_name": "动脉血酸碱与灌注分析 (ABG)",
+      "modality": "LAB",
+      "report_time_seconds": 600,
+      "result": "pH 7.44，PaO2 78 mmHg，PaCO2 33 mmHg，HCO3- 22.5 mmol/L，乳酸 3.2 mmol/L，BE -3.0 mmol/L",
+      "ref_range": "pH 7.35-7.45；PaO2 80-100 mmHg；PaCO2 35-45 mmHg；HCO3- 22-27 mmol/L；乳酸 < 2.0 mmol/L",
+      "status": "ABNORMAL",
+      "conclusion": "轻度低氧血症（PaO2 78 mmHg）伴呼吸性碱中毒倾向及乳酸升高（3.2 mmol/L），提示组织灌注不足。",
+      "clinical_hint": "乳酸升高是灌注不良的旁证，不是诊断本身；血气正常也不能排除大血管病变。"
+    },
+    "routine_blood": {
+      "item_name": "急诊血常规 (CBC)",
+      "modality": "LAB",
+      "report_time_seconds": 900,
+      "result": "WBC 11.8×10^9/L (中性粒 79%), Hb 132 g/L, PLT 215×10^9/L",
+      "ref_range": "WBC (3.5-9.5), Hb (130-175), PLT (125-350)",
+      "status": "MILD_ELEVATED",
+      "conclusion": "白细胞轻度升高伴中性粒细胞为主，符合急性应激反应，无感染证据。"
+    },
+    "hs_ctni": {
+      "item_name": "高敏心肌钙蛋白I (hs-cTnI)",
+      "modality": "LAB",
+      "report_time_seconds": 1500,
+      "result": "0.038 ng/mL",
+      "ref_range": "0.000 - 0.040 ng/mL",
+      "status": "NORMAL_HIGHLIMIT",
+      "conclusion": "肌钙蛋白处于参考值高限临界区，未达心肌梗死3-5倍以上诊断阈值。"
+    },
     "aortic_cta": {
-      "item_name": "急诊胸腹主动脉全长增强CT血管成像 (Aorta CTA)",
+      "item_name": "胸腹主动脉全长增强CTA",
       "modality": "IMAGING",
-      "report_time_seconds": 300,
+      "report_time_seconds": 1200,
       "findings": [
         "升主动脉、主动脉弓及降主动脉全长可见广泛内膜剥脱撕裂撕移片，形成真假两腔；",
         "第一原发破口位于主动脉根部冠状动脉窦管交界上方约 12 mm 处，呈螺旋样向上延伸累及头臂干起始部；",
@@ -110,21 +127,23 @@
       ],
       "conclusion": "Stanford A型（DeBakey I型）急性主动脉夹层，累及头臂干，伴少量心包积血及主动脉根部扩张！危急重症，极高破裂风险！"
     },
-    "routine_blood": {
-      "item_name": "急诊血常规 (CBC)",
+    "d_dimer": {
+      "item_name": "D-二聚体定量 (D-Dimer)",
       "modality": "LAB",
-      "report_time_seconds": 120,
-      "result": "WBC 11.8×10^9/L (中性粒 79%), Hb 132 g/L, PLT 215×10^9/L",
-      "ref_range": "WBC (3.5-9.5), Hb (130-175), PLT (125-350)",
-      "status": "MILD_ELEVATED"
+      "report_time_seconds": 900,
+      "result": "8.85 mg/L FEU",
+      "ref_range": "0.00 - 0.50 mg/L FEU",
+      "status": "CRITICAL_HIGH",
+      "conclusion": "D-二聚体急剧升高达参考上限 17 倍以上！强烈提示体内存在急性大血管内膜广泛撕裂或血栓形成过程！"
     },
     "coagulation": {
-      "item_name": "急诊凝血四项 (Coagulation Profile)",
+      "item_name": "急诊凝血四项",
       "modality": "LAB",
-      "report_time_seconds": 180,
+      "report_time_seconds": 1800,
       "result": "PT 12.3s, INR 1.05, APTT 32.1s, FIB 3.4 g/L",
       "ref_range": "PT (11-14s), INR (0.8-1.2), APTT (28-42s), FIB (2-4g/L)",
-      "status": "NORMAL"
+      "status": "NORMAL",
+      "conclusion": "凝血功能在正常参考区间，可作为术前基线。"
     }
   },
   "dialogue_scripts": {
@@ -156,5 +175,454 @@
     "target_sbp_range": [100, 120],
     "lethal_rupture_countdown_seconds": 120,
     "uncontrolled_crisis_timeout_seconds": 300
-  }
+  },
+  "emotion_scripts": {
+    "E1_CONSULT": {
+      "high": "大夫，您来了就好。我这胸口从下午三点多开始，像被人从里面撕开一样，一直扯到后背，出了一身冷汗。您说我这是怎么了？",
+      "mid": "大夫……我胸口像被人生生用刀划开劈裂一样，后背也疼得像要炸开了，气都喘不上来。",
+      "low": "你们到底行不行啊？都问这么久了！先给我打一针止痛的，别的等会儿再说！"
+    },
+    "E2_PAIN_DETAIL": {
+      "high": "是撕开的那种疼，从前面往后背走，肩胛骨中间最厉害。含了一片硝酸甘油，一点都不管用。血压药我停了两个星期，是我不对。",
+      "mid": "就是……疼得像要炸开。后背也疼。药？我平时吃降压药，最近忙着赶工，有时候忘了吃。",
+      "low": "别问那么多了行不行！问来问去有什么用处？我现在疼得快死了你知不知道！"
+    },
+    "E3_PHYSICAL": {
+      "high": "好，您量吧，我配合。左边胳膊是不是比右边凉？我自己也觉得左边脉跳得弱一些。",
+      "mid": "量吧……（伸出手臂，手在抖）大夫，两边不一样是不是很严重？",
+      "low": "又要按又要听，别碰我后背！一按更疼得厉害！你们到底要折腾到什么时候？"
+    },
+    "E4_WAIT_LAB": {
+      "high": "我等，我听您的。您说等超声，我就等。麻烦您先给我把疼压一压，我实在扛不住了。",
+      "mid": "还要等多久啊……我这疼得受不了了，能不能先给我止止痛？",
+      "low": "等什么等！再等我就死在这儿了！你们是不是想拖到我死了才管？"
+    },
+    "E5_RX": {
+      "high": "大夫，我听您的！我全听您的！这药打进去好像胸口那股撕扯的劲儿轻了一点点，没刚才那么要炸裂了。",
+      "mid": "这针打下去……好像稍微好受一点。大夫，我这病到底要不要开刀啊？",
+      "low": "又是打针又是签字，你们到底想干什么？我告诉你们，出了事我跟你们没完！"
+    },
+    "E6_PRE_OUTCOME": {
+      "high": "大夫，我全听您的。要签什么就签，只要您别松手。我爱人和孩子都还在外面等着。",
+      "mid": "我……我有点怕。您说这到底是怎么回事？我还能好起来吗？",
+      "low": "我不查了。你们查了这么久也说不出个所以然，我要回家，我自己的命我自己负责。"
+    }
+  },
+  "exam_options": [
+    {
+      "exam_id": "PE_BP_BILATERAL",
+      "name": "双侧上肢血压对比测量",
+      "match_keywords": ["双侧上肢血压", "双臂血压", "压差", "双上臂", "对侧血压"],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "双侧上臂收缩压差 < 10 mmHg，对称。",
+        "abnormal": "右上臂 195/115 mmHg，左上臂 162/98 mmHg，收缩压差 33 mmHg，强阳性。"
+      },
+      "clinical_point": "60秒拿到双臂压差，比等1500秒的心肌酶早24分钟定性。",
+      "guard_note": "提问中不得出现瞳孔/下肢/足/腘/肺/呼吸音，否则命中其他分支。"
+    },
+    {
+      "exam_id": "PE_HEART_AUSCULTATION",
+      "name": "心脏听诊（主动脉瓣区）",
+      "match_keywords": ["心脏听诊", "杂音", "主动脉瓣", "瓣膜", "心音"],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "各瓣膜听诊区未闻及病理性杂音，心音正常。",
+        "abnormal": "胸骨右缘第2肋间可闻及 3/6 级舒张期泼水样杂音，向心尖部传导；心音稍低钝，无心包摩擦音。"
+      },
+      "clinical_point": "新发主动脉瓣舒张期杂音提示根部受累与急性关闭不全，是A型的床旁证据。"
+    },
+    {
+      "exam_id": "PE_PULSE",
+      "name": "周围血管搏动触诊",
+      "match_keywords": ["搏动", "脉搏", "桡动脉", "股动脉", "足背动脉"],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "双侧桡动脉、股动脉及足背动脉搏动对称有力。",
+        "abnormal": "右侧桡动脉搏动洪大有力，左侧桡动脉搏动显著弱于对侧；双侧股动脉及足背动脉搏动对称存在。"
+      },
+      "clinical_point": "脉搏不对称是夹层累及分支的第二个廉价信号，与压差互相印证。"
+    },
+    {
+      "exam_id": "PE_ABDOMEN",
+      "name": "腹部查体（包块/血管杂音）",
+      "match_keywords": ["腹部", "压痛", "反跳痛", "搏动性包块"],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "腹部平软，无压痛、反跳痛及肌紧张，未扪及搏动性包块，未闻及血管杂音。",
+        "abnormal": "腹部平软，无压痛、反跳痛及肌紧张，未扪及搏动性包块，未闻及血管杂音。"
+      },
+      "clinical_point": "阴性结果用于排除急腹症，不是用来排除夹层的。"
+    },
+    {
+      "exam_id": "PE_NEURO",
+      "name": "神经系统快速查体",
+      "match_keywords": ["神经", "瞳孔", "巴氏征", "肌力"],
+      "duration_seconds": 90,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "双侧瞳孔等大等圆 3.0 mm，对光反射存在，四肢肌力5级，巴氏征阴性，颈软。",
+        "abnormal": "双侧瞳孔等大等圆 3.0 mm，对光反射存在，四肢肌力5级，巴氏征阴性，颈软。"
+      },
+      "clinical_point": "神经系统阴性说明尚未累及颈动脉与脊髓供血，是病情窗口尚存的证据。"
+    },
+    {
+      "exam_id": "PE_LUNG_AUSCULTATION",
+      "name": "双肺听诊",
+      "match_keywords": ["肺", "呼吸音", "啰音", "双肺听诊"],
+      "duration_seconds": 60,
+      "required": false,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "双肺呼吸音清，未闻及干湿性啰音。",
+        "abnormal": "双肺呼吸音粗，双下肺未闻及湿性啰音及哮鸣音，胸膜摩擦音阴性。"
+      },
+      "clinical_point": "无湿啰音可帮助排除急性左心衰与肺水肿，阴性同样有价值。"
+    }
+  ],
+  "lab_panels": [
+    {
+      "panel_id": "LAB_ECG_18",
+      "name": "床旁18导联同步心电图",
+      "alias": ["心电图", "ecg", "18导联", "12导联"],
+      "modality": "ECG",
+      "tat_seconds": 120,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": true,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "HR 105，PR 158 ms，QRS 92 ms，QT/QTc 390/460 ms；V5-V6 ST段水平压低 0.05-0.10 mV",
+      "ref_range": "窦性心律，ST段等电位线",
+      "conclusion": "窦性心动过速伴ST-T改变，无STEMI特征性抬高，无病理性Q波。",
+      "clinical_hint": "看到ST压低就开双抗，是本例最致命的第一反应。"
+    },
+    {
+      "panel_id": "IMG_POCUS",
+      "name": "床旁超声心动图 (POCUS)",
+      "alias": ["床旁超声", "pocus", "心脏彩超", "超声"],
+      "modality": "ULTRASOUND",
+      "tat_seconds": 300,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "升主动脉根部 46 mm；腔内摆动线样内膜片，真假腔分离；主动脉瓣中度反流；LVEF 58%；心包积液 4.5/3.0 mm",
+      "ref_range": "—",
+      "conclusion": "升主动脉夹层可能，伴主动脉瓣中度关闭不全及少量心包积血。",
+      "clinical_hint": "300秒就能看到内膜片，比等CTA的1200秒更早定型。"
+    },
+    {
+      "panel_id": "LAB_BLOOD_GAS",
+      "name": "动脉血酸碱与灌注分析 (ABG)",
+      "alias": ["血气", "blood gas", "abg", "乳酸"],
+      "modality": "LAB",
+      "tat_seconds": 600,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "pH 7.44，PaO2 78 mmHg，PaCO2 33 mmHg，HCO3- 22.5 mmol/L，乳酸 3.2 mmol/L，BE -3.0 mmol/L",
+      "ref_range": "pH 7.35-7.45，PaO2 80-100 mmHg，乳酸 < 2.0 mmol/L",
+      "conclusion": "轻度低氧血症伴乳酸升高，提示组织灌注不足。",
+      "clinical_hint": "乳酸升高是灌注不良的旁证，不是诊断本身。"
+    },
+    {
+      "panel_id": "LAB_CBC",
+      "name": "急诊血常规 (CBC)",
+      "alias": ["血常规", "cbc", "白细胞", "血红蛋白"],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "WBC 11.8×10^9/L（中性粒 79%），Hb 132 g/L，PLT 215×10^9/L",
+      "ref_range": "WBC 3.5-9.5×10^9/L，Hb 130-175 g/L，PLT 125-350×10^9/L",
+      "conclusion": "白细胞轻度升高，应激性改变，无感染证据。",
+      "clinical_hint": "血红蛋白当下正常，不代表假腔没有在渗血，动态复查才有意义。"
+    },
+    {
+      "panel_id": "LAB_CTNI",
+      "name": "高敏心肌钙蛋白I (hs-cTnI)",
+      "alias": ["肌钙蛋白", "hs-ctni", "troponin", "心肌酶"],
+      "modality": "LAB",
+      "tat_seconds": 1500,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": true,
+      "decision_window": "BEYOND_CLOCK",
+      "result_text": "0.038 ng/mL",
+      "ref_range": "0.000 - 0.040 ng/mL",
+      "conclusion": "处于参考值高限临界区，未达心肌梗死 3-5 倍阈值。",
+      "clinical_hint": "轻度升高不等于心梗；本例从发病到回报已远超生理恶化窗口。"
+    },
+    {
+      "panel_id": "IMG_AORTA_CTA",
+      "name": "胸腹主动脉全长增强CTA",
+      "alias": ["主动脉cta", "cta", "增强cta", "大血管cta"],
+      "modality": "IMAGING",
+      "tat_seconds": 1200,
+      "is_key": true,
+      "is_gold_standard": true,
+      "is_trap": false,
+      "decision_window": "BEYOND_CLOCK",
+      "result_text": "升主动脉—弓—降主动脉广泛内膜片与真假双腔；原发破口位于窦管交界上方 12 mm，累及头臂干；真腔裂隙样变细；心包窦积液 45 HU",
+      "ref_range": "—",
+      "conclusion": "Stanford A型（DeBakey I型）急性主动脉夹层，累及头臂干，伴少量心包积血。",
+      "clinical_hint": "确诊金标准，但必须先稳住血流动力学才有资格进CT室。"
+    },
+    {
+      "panel_id": "LAB_DDIMER",
+      "name": "D-二聚体定量 (D-Dimer)",
+      "alias": ["d-二聚体", "d-dimer", "dimer", "二聚体"],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "8.85 mg/L FEU",
+      "ref_range": "0.00 - 0.50 mg/L FEU",
+      "conclusion": "达参考上限 17 倍以上，提示急性大血管内膜广泛撕裂。",
+      "clinical_hint": "对A型夹层无排除价值，只作支持证据。"
+    },
+    {
+      "panel_id": "LAB_COAG",
+      "name": "急诊凝血四项",
+      "alias": ["凝血", "inr", "aptt", "pt"],
+      "modality": "LAB",
+      "tat_seconds": 1800,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "BEYOND_CLOCK",
+      "result_text": "PT 12.3s，INR 1.05，APTT 32.1s，FIB 3.4 g/L",
+      "ref_range": "PT 11-14s，INR 0.8-1.2，APTT 28-42s，FIB 2-4 g/L",
+      "conclusion": "凝血功能正常范围。",
+      "clinical_hint": "术前必备，但回报远超恶化时钟，开台前不可等。"
+    }
+  ],
+  "prescription_rules": [
+    {
+      "rule_id": "RX_ESMOLOL",
+      "drug_name": "盐酸艾司洛尔注射液",
+      "match_keywords": ["艾司洛尔", "esmolol"],
+      "verdict": "TARGET",
+      "dose": "负荷 0.5 mg/kg 静推 1 min（约 35 mg），随后 50-200 µg/kg/min 泵入",
+      "route": "静脉泵入",
+      "frequency": "持续泵入，按心率滴定",
+      "target": "HR < 60 bpm",
+      "consequence_text": "β1受体阻滞降低 dP/dt 与心率，主动脉壁剪切应力下降。",
+      "score_delta": 0.04
+    },
+    {
+      "rule_id": "RX_NITROPRUSSIDE",
+      "drug_name": "注射用硝普钠",
+      "match_keywords": ["硝普钠", "nitroprusside"],
+      "verdict": "TARGET",
+      "dose": "0.3 µg/kg/min 起泵，每 5 min 上调 0.2，维持 SBP 100-120 mmHg",
+      "route": "静脉泵入",
+      "frequency": "持续泵入，按血压滴定",
+      "target": "SBP 100-120 mmHg",
+      "prerequisite": "已使用艾司洛尔且 HR < 60",
+      "consequence_text": "在心率已控制前提下降低左室射血阻力与主动脉壁张力。",
+      "score_delta": 0.04
+    },
+    {
+      "rule_id": "RX_MORPHINE",
+      "drug_name": "盐酸吗啡注射液",
+      "match_keywords": ["吗啡", "morphine"],
+      "verdict": "SUPPORTIVE",
+      "dose": "3 mg 静脉缓慢推注，必要时 10 min 后重复 2 mg",
+      "route": "静脉推注",
+      "frequency": "按需，间隔 ≥10 min",
+      "target": "VAS ≤ 3",
+      "consequence_text": "中枢镇痛减轻交感风暴，心率与血压随之回落。",
+      "score_delta": 0.02
+    },
+    {
+      "rule_id": "RX_REDLINE_ANTITHROMBOTIC",
+      "drug_name": "抗栓药物组合（阿司匹林/氯吡格雷/肝素/溶栓药等）",
+      "match_keywords": ["阿司匹林", "aspirin", "氯吡格雷", "clopidogrel", "替格瑞洛", "ticagrelor", "肝素", "heparin", "阿替普酶", "alteplase", "尿激酶", "urokinase", "替奈普酶", "tenecteplase", "华法林", "warfarin", "利伐沙班", "rivaroxaban", "比伐卢定", "bivalirudin"],
+      "verdict": "RED_LINE",
+      "severity": "LETHAL",
+      "dose": "任意剂量单次即触发",
+      "route": "静脉推注",
+      "frequency": "单次即触发",
+      "target": "—",
+      "consequence_text": "抗血小板/抗凝/溶栓使撕裂内膜失去血栓封堵，假腔暴发性破裂导致急性心包填塞，120 秒内循环崩溃。",
+      "score_delta": -0.2
+    },
+    {
+      "rule_id": "RX_REDLINE_VASODILATOR_ALONE",
+      "drug_name": "血管扩张剂单用（硝酸甘油/硝普钠，未先用β受体阻滞剂）",
+      "match_keywords": ["硝酸甘油", "nitroglycerin", "硝普钠", "nitroprusside"],
+      "verdict": "RED_LINE",
+      "severity": "HARMFUL",
+      "dose": "硝酸甘油 >50 µg/min 或硝普钠 >3 µg/kg/min 且 HR 未达标",
+      "route": "静脉泵入",
+      "frequency": "持续泵入",
+      "target": "—",
+      "prerequisite": "已使用艾司洛尔且 HR < 60",
+      "consequence_text": "心率未控制前单用血管扩张剂会引发反射性心动过速，dP/dt 与剪切应力反而升高，撕裂向远端扩展。",
+      "score_delta": -0.05
+    }
+  ],
+  "outcomes": {
+    "A": {
+      "code": "A",
+      "label": "治愈/稳定",
+      "condition": "HR < 60 && 100 <= SBP <= 120 && has('N13') && has('N14') && !has_red_line",
+      "title": "双达标，送台成功",
+      "narration": "心率与血压双双落进目标区间，疼痛评分随之下降到3分以内。床旁超声看到心包积液没有增加，导管室已经准备好。把患者从抢救室推向手术室的那段走廊，是你用每一分钟的准确判断换来的。",
+      "patient_line": "大夫……我这条命是您抢回来的。等我好了，我请您喝酒。",
+      "family_line": "谢谢医生，谢谢你们所有人！我们签，我们马上签！",
+      "review_items": [
+        "60秒完成双臂压差测量",
+        "300秒用POCUS完成定性",
+        "先β后扩血管，顺序正确",
+        "全程未触碰抗栓药物"
+      ],
+      "next_step": "急诊开胸升主动脉替换术"
+    },
+    "B": {
+      "code": "B",
+      "label": "延误",
+      "condition": "!has_red_line && (HR >= 60 || SBP > 120) && outcome_of('physiology') != 'ARREST'",
+      "title": "撕口在扩，你慢了",
+      "narration": "患者还活着，但疼痛没有真正缓解，心率始终没有压到60以下。复查超声已经看到心包积液从4.5毫米涨到9毫米，假腔还在扩大。你争取到了时间，却没有赢得确定的处置窗口。",
+      "patient_line": "大夫……怎么还是这么疼？是不是没查清楚啊……",
+      "family_line": "医生，都这么久了怎么还没个准话？要不要转院？",
+      "review_items": [
+        "未在180秒内测量双臂血压",
+        "先去等1500秒的心肌酶",
+        "降压顺序颠倒",
+        "未呼叫心胸外科急会诊"
+      ],
+      "next_step": "转重症监护室继续药物控制并等待手术时机"
+    },
+    "C": {
+      "code": "C",
+      "label": "离院",
+      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "title": "他自己走出了抢救室",
+      "narration": "他扯掉监护指夹，推开护士，一边捂着胸口一边说你们连我哪儿疼都说不明白。家属追出去在走廊里哭。三小时后他被120送回，已经意识丧失。信任是抢救室的第二条生命线。",
+      "patient_line": "我不治了。你们连我哪儿疼都说不明白。",
+      "family_line": "老孙！你回来！医生对不起，对不起……",
+      "review_items": [
+        "重复提问导致信任持续下降",
+        "未安抚、未解释检查目的",
+        "疼痛未处理导致信任崩塌"
+      ],
+      "next_step": "离院随访，结局按最坏分支结算"
+    },
+    "D": {
+      "code": "D",
+      "label": "死亡/不良事件",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "title": "假腔破裂，心包填塞",
+      "narration": "监护仪上的血压在一分钟内从90掉到40，颈静脉重度怒张，心音遥远。床旁超声显示心包腔被血性液体填满，心脏已经无法舒张。胸外按压持续了四十分钟，最后一次除颤之后，屏幕上是一条直线。",
+      "patient_line": "（意识丧失，无应答）",
+      "family_line": "建国！建国你睁开眼看看我！医生！医生！！",
+      "review_items": [
+        "点名致命医嘱：开了什么药、当时HR与SBP是多少",
+        "120秒倒计时内未行心包穿刺",
+        "未识别已知的主动脉瓣新发杂音"
+      ],
+      "next_step": "死亡讨论与家属告知"
+    }
+  },
+  "knowledge_card": {
+    "title": "撕裂样胸痛：先想大血管，再想冠脉",
+    "items": [
+      {
+        "no": 1,
+        "title": "双臂压差 > 20 mmHg",
+        "one_liner": "双上臂收缩压差超过20 mmHg是最廉价的夹层信号，60秒可得。",
+        "pitfall": "常见误区：只量一侧血压，把195/115当成普通高血压急症。"
+      },
+      {
+        "no": 2,
+        "title": "撕裂样痛 + 高血压史",
+        "one_liner": "突发、撕裂样、向背部放射、硝酸甘油无效，四联征出现先想夹层。",
+        "pitfall": "常见误区：把所有剧烈胸痛都先扣上心梗的帽子。"
+      },
+      {
+        "no": 3,
+        "title": "先控心率，再降血压",
+        "one_liner": "先用β受体阻滞剂把HR压到60以下，再用硝普钠把SBP压到100-120。",
+        "pitfall": "常见误区：一上来就泵硝普钠，反射性心动过速加速撕裂。"
+      },
+      {
+        "no": 4,
+        "title": "肌钙蛋白升高≠心梗",
+        "one_liner": "夹层累及冠脉开口时cTnI可轻度升高，但达不到3-5倍阈值。",
+        "pitfall": "常见误区：看到肌钙蛋白高了一点就开双抗。"
+      },
+      {
+        "no": 5,
+        "title": "床旁超声是性价比之王",
+        "one_liner": "300秒的POCUS能直接看到内膜片与心包积液，比心肌酶早20分钟。",
+        "pitfall": "常见误区：把确诊全押在CTA上，忘了CTA要先稳住才能进。"
+      }
+    ]
+  },
+  "present_illness": {
+    "onset": "3小时前开会时突发胸背部剧痛，无先兆，疼痛评分VAS 9分且持续不缓解。",
+    "character": "撕裂样、刀割样剧痛，位于胸前区并向背部走行，伴大汗淋漓、烦躁不安。",
+    "radiation": "自胸前向肩胛间区及腰部放射，无上肢及下颌放射痛。",
+    "trigger": "近2周赶工期极度疲劳，并擅自停用降压药2周。",
+    "relief": "含服自备硝酸甘油1片完全无效，静卧休息亦无缓解。"
+  },
+  "risk_factors": [
+    "原发性高血压病史10年，最高血压200/115 mmHg，控制不佳",
+    "近2周擅自停用苯磺酸氨氯地平，血压完全失去控制",
+    "52岁男性，长期高负荷工作与持续情绪应激",
+    "吸烟20年，每日约1包"
+  ],
+  "key_positives": [
+    "双上臂收缩压差33 mmHg（右195/115 mmHg，左162/98 mmHg）",
+    "胸骨右缘第2肋间3/6级舒张期泼水样杂音，向心尖部传导",
+    "左侧桡动脉搏动显著弱于右侧，右桡动脉搏动洪大有力"
+  ],
+  "key_negatives": [
+    "双下肺未闻及湿性啰音，无粉红色泡沫痰，不支持急性左心衰与肺水肿",
+    "腹部平软，无压痛、反跳痛及肌紧张，不支持急腹症"
+  ],
+  "inquiry_points": [
+    "疼痛是什么性质的？是撕裂样、刀割样还是压榨样？",
+    "疼痛向哪些部位放射？后背、肩胛骨之间还是腰部？",
+    "是怎么起病的？突发还是逐渐加重？当时在做什么、有没有情绪激动或用力？",
+    "既往有高血压吗？最近有没有停药或漏服降压药？",
+    "含服过硝酸甘油吗？含了以后疼痛有没有减轻？",
+    "有没有手脚发麻、无力、晕厥或者尿量减少？",
+    "有没有呼吸困难、咯血或者下肢水肿？",
+    "有没有药物或食物过敏史？平时还在吃什么药？"
+  ],
+  "differentials": [
+    {
+      "name": "急性ST段抬高型心肌梗死（STEMI）",
+      "why_support": "中年男性、剧烈胸痛伴大汗、高血压病史，心电图V5-V6可见ST段压低，极易被当成急性冠脉综合征。",
+      "why_not": "18导联无弓背向上抬高与病理性Q波，hs-cTnI 0.038未达3-5倍阈值，而撕裂样痛、33 mmHg双臂压差与新发主动脉瓣舒张期杂音都指向主动脉壁而非冠脉。"
+    },
+    {
+      "name": "急性肺栓塞",
+      "why_support": "突发胸痛伴气促，D-二聚体升高达参考上限17倍以上，容易顺理成章归因于肺栓塞。",
+      "why_not": "SpO2 96%、双肺无湿啰音、无下肢肿胀与DVT证据；肺栓塞不会产生双上臂压差与新发主动脉瓣舒张期杂音，且POCUS已直接看到升主动脉内膜片。"
+    },
+    {
+      "name": "急腹症（急性胰腺炎/消化道穿孔）",
+      "why_support": "疼痛向背部放射、伴大汗、VAS 9分，容易被当成腰背部来源的急腹症。",
+      "why_not": "腹部平软、无压痛反跳痛及肌紧张、无搏动性包块与血管杂音；急腹症无法解释33 mmHg双臂压差与主动脉瓣区新发杂音。"
+    }
+  ]
 }

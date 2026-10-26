@@ -11,12 +11,22 @@
     "age": 22,
     "occupation": "电竞专业大三学生 / 兼职游戏代练",
     "past_history": "体健，无慢性病史，无药物过敏史",
-    "family_companion": "室友（在门口拎着他的保温杯）"
+    "family_companion": "室友（在门口拎着他的保温杯）",
+    "medication_history": [
+      "否认长期用药"
+    ],
+    "allergy_history": "否认药物及食物过敏"
   },
   "initial_vitals": {
-    "hr": 96, "sbp": 112, "dbp": 70, "spo2": 97, "rr": 18, "pain_vas": 5,
+    "hr": 96,
+    "sbp": 112,
+    "dbp": 70,
+    "spo2": 97,
+    "rr": 18,
+    "pain_vas": 5,
     "ecg_rhythm": "窦性心律",
-    "consciousness": "神志清楚，急性病容，间断呻吟，轻度口干"
+    "consciousness": "神志清楚，急性病容，间断呻吟，轻度口干",
+    "temperature_c": 37.5
   },
   "physical_exam_findings": {
     "general": "腹软，脐周及下腹不固定轻压痛、无反跳痛无肌紧张；肠鸣音活跃（12次/分）；麦氏点无压痛",
@@ -46,8 +56,18 @@
   "game_extensions": {
     "short_intro": "嘴硬的代练小伙疼得直不起腰还惦记排位赛——考你补液优先的正确顺序，和“麦氏点压痛阴性”这个关键鉴别。",
     "symptoms": {
-      "unique": ["隔夜小龙虾进食史", "水样腹泻6次", "肠鸣音活跃", "脐周不固定压痛（无反跳痛）"],
-      "shared": ["腹痛", "恶心呕吐", "低热", "乏力"]
+      "unique": [
+        "隔夜小龙虾进食史",
+        "水样腹泻6次",
+        "肠鸣音活跃",
+        "脐周不固定压痛（无反跳痛）"
+      ],
+      "shared": [
+        "腹痛",
+        "恶心呕吐",
+        "低热",
+        "乏力"
+      ]
     },
     "decoy_diagnoses": [
       {
@@ -66,7 +86,12 @@
         "differentiation": "食物中毒多为多人同餐同时发病；本例室友同吃未发病（个体进食隔夜变质食物）"
       }
     ],
-    "required_exams": ["腹部查体（压痛点定位+麦氏点+反跳痛）", "大便常规", "血常规", "体温+脱水评估"],
+    "required_exams": [
+      "腹部查体（压痛点定位+麦氏点+反跳痛）",
+      "大便常规",
+      "血常规",
+      "体温+脱水评估"
+    ],
     "redundant_exams_hint": "腹部CT、胃镜对本例属冗余检查",
     "confirmed_diagnosis": "急性胃肠炎（轻度脱水）",
     "treatment_plan": {
@@ -77,9 +102,21 @@
         "4. 饮食指导：暂禁油腻，好转后清淡流质（米汤、稀粥）→ 半流质逐步过渡"
       ],
       "medications": [
-        {"name": "口服补液盐Ⅲ", "usage": "1袋/250ml温水，少量多次", "purpose": "补液防脱水"},
-        {"name": "蒙脱石散", "usage": "3g/次，空腹，每日3次", "purpose": "吸附止泻、保护肠黏膜"},
-        {"name": "益生菌（双歧杆菌等）", "usage": "与蒙脱石散间隔2小时服用", "purpose": "恢复肠道菌群"}
+        {
+          "name": "口服补液盐Ⅲ",
+          "usage": "1袋/250ml温水，少量多次",
+          "purpose": "补液防脱水"
+        },
+        {
+          "name": "蒙脱石散",
+          "usage": "3g/次，空腹，每日3次",
+          "purpose": "吸附止泻、保护肠黏膜"
+        },
+        {
+          "name": "益生菌（双歧杆菌等）",
+          "usage": "与蒙脱石散间隔2小时服用",
+          "purpose": "恢复肠道菌群"
+        }
       ],
       "contraindications": [
         "❌ 早期强力止泻（洛哌丁胺）：可能抑制肠蠕动、延长病原滞留",
@@ -87,7 +124,12 @@
         "❌ 继续进食隔夜食物 / 冰镇饮料"
       ]
     },
-    "nursing_plan": ["记录腹泻次数与尿量（脱水观察）", "每次便后温水清洁肛周", "餐具与室友分开、七步洗手", "24小时内避免乳制品与高脂饮食"],
+    "nursing_plan": [
+      "记录腹泻次数与尿量（脱水观察）",
+      "每次便后温水清洁肛周",
+      "餐具与室友分开、七步洗手",
+      "24小时内避免乳制品与高脂饮食"
+    ],
     "persona": {
       "personality": "大大咧咧、嘴硬、怕耽误“正事”，疼到皱眉还要保持幽默",
       "tone": "吊儿郎当混着真诚，爱用游戏术语打比方",
@@ -95,12 +137,54 @@
     },
     "backstory": "林浩昨晚通宵代练，凌晨把室友没吃完、常温放了一天的小龙虾全炫了。早上开始“肚子里翻江倒海”，跑了六趟厕所。室友怕他“交代在宿舍”，把他拎来了校医院。他心里想的是：快点止住，晚上八点还有晋级赛。治好他的关键是：让他明白——现在最要紧的不是止泻，是补水。",
     "animation_states": [
-      {"state": "idle_normal", "name": "正常站姿（强撑）", "frames": 6, "loop": true, "trigger": "接诊默认", "desc": "单肩垮着背包，故作轻松，但脸色发白"},
-      {"state": "hold_belly_bend", "name": "捂腹弯腰", "frames": 6, "loop": false, "trigger": "绞痛发作", "desc": "双手捂住脐周、身体折叠成“<”形，面部扭曲，冷汗滴落"},
-      {"state": "toilet_rush", "name": "急奔厕所", "frames": 6, "loop": false, "trigger": "腹泻症状问诊后", "desc": "捂着肚子碎步横移冲出画面，尘土飞扬效果"},
-      {"state": "nausea_cover_mouth", "name": "恶心捂嘴", "frames": 4, "loop": true, "trigger": "呕吐症状显现", "desc": "手背抵嘴、干呕耸肩、脸色青白"},
-      {"state": "sip_orz_water", "name": "小口喝补液盐", "frames": 5, "loop": true, "trigger": "接受补液治疗", "desc": "捧着水杯皱眉小口啜饮，被咸味齁到眯眼"},
-      {"state": "cured_thumbsup", "name": "治愈·比大拇指", "frames": 5, "loop": false, "trigger": "治疗完成", "desc": "挺直腰板，露出标志性贱兮兮的笑，比出大拇指"}
+      {
+        "state": "idle_normal",
+        "name": "正常站姿（强撑）",
+        "frames": 6,
+        "loop": true,
+        "trigger": "接诊默认",
+        "desc": "单肩垮着背包，故作轻松，但脸色发白"
+      },
+      {
+        "state": "hold_belly_bend",
+        "name": "捂腹弯腰",
+        "frames": 6,
+        "loop": false,
+        "trigger": "绞痛发作",
+        "desc": "双手捂住脐周、身体折叠成“<”形，面部扭曲，冷汗滴落"
+      },
+      {
+        "state": "toilet_rush",
+        "name": "急奔厕所",
+        "frames": 6,
+        "loop": false,
+        "trigger": "腹泻症状问诊后",
+        "desc": "捂着肚子碎步横移冲出画面，尘土飞扬效果"
+      },
+      {
+        "state": "nausea_cover_mouth",
+        "name": "恶心捂嘴",
+        "frames": 4,
+        "loop": true,
+        "trigger": "呕吐症状显现",
+        "desc": "手背抵嘴、干呕耸肩、脸色青白"
+      },
+      {
+        "state": "sip_orz_water",
+        "name": "小口喝补液盐",
+        "frames": 5,
+        "loop": true,
+        "trigger": "接受补液治疗",
+        "desc": "捧着水杯皱眉小口啜饮，被咸味齁到眯眼"
+      },
+      {
+        "state": "cured_thumbsup",
+        "name": "治愈·比大拇指",
+        "frames": 5,
+        "loop": false,
+        "trigger": "治疗完成",
+        "desc": "挺直腰板，露出标志性贱兮兮的笑，比出大拇指"
+      }
     ],
     "dialogue_layers": {
       "greeting": [
@@ -153,5 +237,491 @@
       "after_rehydration": "【状态提示】口唇湿润 · 心率回落 · 绞痛间隔拉长 —— 补液生效",
       "cured": "【状态提示】大便成形 · 进食流质无不适 —— 可以出院，记得忌口"
     }
+  },
+  "present_illness": {
+    "onset": "半天前凌晨起病，进食隔夜小龙虾后约 3 小时开始腹痛，随后出现呕吐与腹泻",
+    "character": "阵发性脐周绞痛，VAS 在 4–7 分之间波动，绞痛间歇期可完全缓解",
+    "radiation": "无放射痛，不向腰背及会阴部放射",
+    "trigger": "进食常温放置超过 12 小时的隔夜小龙虾",
+    "relief": "排便与呕吐后绞痛短暂减轻，腹部热敷无效"
+  },
+  "risk_factors": [
+    "进食常温放置 12 小时以上的隔夜海鲜",
+    "22 岁青年男性，宿舍饮食卫生条件有限",
+    "通宵熬夜后抵抗力下降",
+    "饮水量少，已出现轻度脱水",
+    "同餐室友未发病（提示个体变质食物）"
+  ],
+  "key_positives": [
+    "阵发性脐周绞痛，VAS 在 4–7 分之间波动",
+    "水样泻 6 次，肠鸣音活跃 12 次/分",
+    "皮肤弹性稍差、口唇略干（轻度脱水）"
+  ],
+  "key_negatives": [
+    "麦氏点无固定压痛、无反跳痛及肌紧张",
+    "大便镜检白细胞 2–4/HP，未见红细胞与脓血"
+  ],
+  "inquiry_points": [
+    "询问腹痛部位与是否发生转移（脐周固定还是转移至右下腹）",
+    "询问腹痛性质与节律（阵发性绞痛还是持续性胀痛）",
+    "询问腹泻次数、性状以及有无脓血",
+    "询问呕吐次数与呕吐物性质",
+    "询问可疑进食史与同餐者是否同时发病",
+    "询问尿量与口渴程度（评估脱水）",
+    "询问有无发热、寒战以及最高体温",
+    "询问既往史、用药史与药物过敏史（开药前必问）"
+  ],
+  "differentials": [
+    {
+      "name": "急性阑尾炎",
+      "why_support": "同样表现为腹痛、恶心与低热",
+      "why_not": "本例压痛不固定、麦氏点阴性、无反跳痛，且以水样泻为主；阑尾炎是转移性右下腹痛伴固定压痛与反跳痛"
+    },
+    {
+      "name": "细菌性痢疾",
+      "why_support": "同样有腹泻伴发热",
+      "why_not": "本例为水样便、镜检白细胞仅 2–4/HP、无红细胞与脓血，不符合菌痢的脓血便与满视野白细胞"
+    },
+    {
+      "name": "沙门菌食物中毒（群体性）",
+      "why_support": "同样在不洁饮食后出现呕吐与腹泻",
+      "why_not": "同餐室友未发病，无群体发病链条，属个体进食变质食物引起的急性胃肠炎"
+    }
+  ],
+  "emotion_scripts": {
+    "E1_CONSULT": {
+      "high": "大夫您好，我这肚子从后半夜就开始闹，跑了六趟厕所了，您给看看。",
+      "mid": "大夫……小事儿小事儿，就是这会儿拧着疼得厉害，还老想上厕所。",
+      "low": "快点行不行？我晚上八点还有比赛，你倒是先给我把泻止住啊！"
+    },
+    "E2_PAIN_DETAIL": {
+      "high": "肚子一阵一阵拧着疼，疼起来腰都直不了，拉的全是水，吐了两回。",
+      "mid": "就是肚脐周围绞着疼，拉完能缓一会儿。我怀疑是昨天那盘小龙虾。",
+      "low": "问这问那有完没完？不就是吃坏肚子吗，给我开点药不就完了！"
+    },
+    "E3_PHYSICAL": {
+      "high": "您按吧，哪疼我说哪。这儿按下去不太疼，就是发胀。",
+      "mid": "哎呀轻点儿轻点儿……大夫，我这不是阑尾炎吧？我可不想开刀。",
+      "low": "别按了别按了！越按越疼，我肚子里现在跟翻江倒海似的。"
+    },
+    "E4_WAIT_LAB": {
+      "high": "行，我等结果。反正也跑不动了，就在这儿坐着缓一缓。",
+      "mid": "还得等啊……那结果出来能不能先给我挂点水？我感觉人都干了。",
+      "low": "查什么大便！这么麻烦，我不查了，你直接给我开点止泻药。"
+    },
+    "E5_RX": {
+      "high": "补液盐是吧？行，我喝。您说止泻药别急着吃，那我先不吃了。",
+      "mid": "不给我止泻药啊？那这一趟一趟跑厕所谁受得了……那我先喝这个咸水？",
+      "low": "让我喝盐水？我拉成这样你就给我喝盐水？这不是糊弄人吗！"
+    },
+    "E6_PRE_OUTCOME": {
+      "high": "谢谢大夫，比赛我推了。回去我就照着喝，明天不行我再过来。",
+      "mid": "那我先回去喝两天看看……要是还拉，我再来找您。",
+      "low": "算了，我自己去药店买盒止泻的，比在这儿等着强。"
+    }
+  },
+  "exam_options": [
+    {
+      "exam_id": "PE_ABDOMEN",
+      "name": "腹部触诊（压痛点定位与麦氏点）",
+      "match_keywords": [
+        "腹部触诊",
+        "麦氏点",
+        "压痛",
+        "触诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "腹软，全腹无压痛、反跳痛及肌紧张，麦氏点无压痛，肝浊音界存在。",
+        "abnormal": "腹软，脐周及下腹不固定轻压痛，无反跳痛、无肌紧张；麦氏点无压痛，肝浊音界存在。"
+      },
+      "clinical_point": "60 秒判断压痛点是否固定，是胃肠炎与阑尾炎之间唯一可靠的分水岭。"
+    },
+    {
+      "exam_id": "PE_BOWEL_SOUND",
+      "name": "腹部听诊（肠鸣音）",
+      "match_keywords": [
+        "肠鸣音",
+        "腹部听诊",
+        "听诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "肠鸣音 4 次/分，音调正常。",
+        "abnormal": "肠鸣音活跃 12 次/分，音调偏高，未闻及金属音及气过水声。"
+      },
+      "clinical_point": "肠鸣音活跃支持分泌性腹泻；一旦转为减弱或消失，要立刻怀疑低钾或腹膜炎。"
+    },
+    {
+      "exam_id": "PE_HYDRATION",
+      "name": "一般情况与脱水程度评估",
+      "match_keywords": [
+        "一般情况",
+        "脱水",
+        "查体"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "皮肤弹性良好，口唇湿润，毛细血管再充盈时间 <2 秒。",
+        "abnormal": "皮肤弹性稍差，口唇略干，毛细血管再充盈时间 3 秒，眼窝稍凹陷。"
+      },
+      "clinical_point": "30 秒判断脱水程度，直接决定补液速度——这里补液比止泻重要。"
+    },
+    {
+      "exam_id": "PE_ORAL",
+      "name": "口腔黏膜与咽部视诊",
+      "match_keywords": [
+        "口腔黏膜",
+        "咽部视诊",
+        "视诊"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "口腔黏膜湿润，咽部无充血，无疱疹及溃疡。",
+        "abnormal": "口腔黏膜湿润，咽部无充血，无疱疹及溃疡。"
+      },
+      "clinical_point": "口腔黏膜干燥程度是最快的容量指标；咽部无充血可排除上感相关性腹泻。"
+    },
+    {
+      "exam_id": "PE_ORTHOSTATIC_BP",
+      "name": "体位性血压查体",
+      "match_keywords": [
+        "体位性血压",
+        "卧立位",
+        "查体"
+      ],
+      "duration_seconds": 180,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "卧位 112/70 mmHg、HR 96；站立 3 分钟 108/68 mmHg、HR 106，收缩压下降 4 mmHg。",
+        "abnormal": "卧位 112/70 mmHg、HR 96；站立 3 分钟 98/60 mmHg、HR 116，收缩压下降 14 mmHg，诉起身时眼前发黑。"
+      },
+      "clinical_point": "体位性收缩压下降 ≥10 mmHg 提示容量不足，是「先补液」而不是「先止泻」的直接证据。"
+    }
+  ],
+  "lab_panels": [
+    {
+      "panel_id": "LAB_STOOL",
+      "name": "大便常规 + 隐血",
+      "alias": [
+        "大便常规",
+        "stool",
+        "便常规"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 300,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "水样便，镜检白细胞 2–4/HP，红细胞 0/HP，隐血阴性；轮状病毒及诺如病毒抗原阴性",
+      "ref_range": "白细胞 0–3/HP，红细胞 0/HP",
+      "conclusion": "符合急性非侵袭性肠炎（渗透性腹泻），不支持细菌性痢疾。",
+      "clinical_hint": "白细胞不超 3 个/HP，是「不用抗生素」的实验室依据。"
+    },
+    {
+      "panel_id": "LAB_CBC",
+      "name": "急诊血常规 (CBC)",
+      "alias": [
+        "血常规",
+        "cbc",
+        "白细胞"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "WBC 9.8×10⁹/L，中性粒细胞 70%，Hb 152 g/L，HCT 46%，PLT 232×10⁹/L",
+      "ref_range": "WBC 3.5–9.5×10⁹/L，Hb 130–175 g/L，HCT 40–50%",
+      "conclusion": "白细胞临界正常，无明显细菌感染证据；Hb 与 HCT 偏高提示血液浓缩。",
+      "clinical_hint": "HCT 偏高是脱水的旁证，比患者说「不太渴」客观得多。"
+    },
+    {
+      "panel_id": "LAB_ELECTROLYTE",
+      "name": "血电解质（钾钠氯）",
+      "alias": [
+        "电解质",
+        "electrolyte",
+        "钾钠氯"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": true,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "K⁺ 3.2 mmol/L，Na⁺ 134 mmol/L，Cl⁻ 98 mmol/L",
+      "ref_range": "K⁺ 3.5–5.3 mmol/L，Na⁺ 137–147 mmol/L，Cl⁻ 99–110 mmol/L",
+      "conclusion": "低钾血症伴轻度低钠，符合呕吐腹泻后的电解质丢失。",
+      "clinical_hint": "低钾会让肠鸣音从活跃转为减弱——那时就不只是胃肠炎了。"
+    },
+    {
+      "panel_id": "LAB_BLOOD_GAS",
+      "name": "血气分析",
+      "alias": [
+        "血气",
+        "blood gas",
+        "乳酸"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 600,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "pH 7.38，PaCO2 36 mmHg，HCO3⁻ 21 mmol/L，乳酸 1.8 mmol/L，BE -3.0",
+      "ref_range": "pH 7.35–7.45，HCO3⁻ 22–27 mmol/L，乳酸 <2.0 mmol/L",
+      "conclusion": "轻度代谢性酸中毒伴代偿性呼吸，乳酸尚在正常上限。",
+      "clinical_hint": "乳酸正常说明还没到休克代偿；一旦升高，补液就得更快。"
+    },
+    {
+      "panel_id": "IMG_ABD_US",
+      "name": "腹部超声（肝胆胰脾 + 阑尾区）",
+      "alias": [
+        "腹部超声",
+        "腹部彩超",
+        "ultrasound"
+      ],
+      "modality": "ULTRASOUND",
+      "tat_seconds": 300,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "肝胆胰脾未见异常；右下腹未探及肿大阑尾，阑尾区无积液，肠管蠕动活跃",
+      "ref_range": "—",
+      "conclusion": "阑尾区未见异常，进一步排除急性阑尾炎。",
+      "clinical_hint": "属可选检查：查体已能排除阑尾炎时，这 300 秒可以省。"
+    },
+    {
+      "panel_id": "LAB_STOOL_CULTURE",
+      "name": "粪便培养 + 药敏",
+      "alias": [
+        "粪便培养",
+        "便培养",
+        "stool culture"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 3600,
+      "is_key": false,
+      "is_gold_standard": true,
+      "is_trap": false,
+      "decision_window": "BEYOND_CLOCK",
+      "result_text": "培养 48 小时未见沙门菌、志贺菌及致病性大肠埃希菌生长",
+      "ref_range": "无致病菌生长",
+      "conclusion": "无致病菌生长，支持病毒性或非侵袭性肠炎。",
+      "clinical_hint": "病原学金标准要 3600 秒，而补液 15 分钟就该开始——先处理后等结果。"
+    }
+  ],
+  "prescription_rules": [
+    {
+      "rule_id": "RX_ORS",
+      "drug_name": "口服补液盐Ⅲ",
+      "match_keywords": [
+        "口服补液盐",
+        "补液盐",
+        "ors"
+      ],
+      "verdict": "TARGET",
+      "dose": "1 袋（5.125 g）兑 250 mL 温水，每次稀便后补 200 mL",
+      "route": "口服",
+      "frequency": "少量多次，4 小时内累计 1500 mL",
+      "target": "尿量 >0.5 mL/kg/h，尿色转清",
+      "consequence_text": "纠正容量不足与电解质丢失，是急性胃肠炎处置的第一顺位。",
+      "score_delta": 0.04
+    },
+    {
+      "rule_id": "RX_MONTMORILLONITE",
+      "drug_name": "蒙脱石散",
+      "match_keywords": [
+        "蒙脱石",
+        "思密达",
+        "montmorillonite"
+      ],
+      "verdict": "SUPPORTIVE",
+      "dose": "3 g 兑 50 mL 温水",
+      "route": "口服",
+      "frequency": "每日 3 次，餐前空腹，与益生菌间隔 2 小时",
+      "target": "—",
+      "consequence_text": "吸附肠腔毒素、覆盖受损肠黏膜，减少排便次数。",
+      "score_delta": 0.02
+    },
+    {
+      "rule_id": "RX_LOPERAMIDE",
+      "drug_name": "盐酸洛哌丁胺胶囊",
+      "match_keywords": [
+        "洛哌丁胺",
+        "易蒙停",
+        "loperamide"
+      ],
+      "verdict": "WARN_ONLY",
+      "dose": "2 mg 口服",
+      "route": "口服",
+      "frequency": "单次，24 小时内不超过 4 次",
+      "target": "—",
+      "prerequisite": "大便镜检白细胞 ≤3/HP 且体温 ≤38℃、无血便",
+      "consequence_text": "本例已存在低钾与轻度脱水，抑制肠蠕动会让毒素滞留、延长病程；前提不成立时按过度止泻扣分。",
+      "score_delta": -0.05
+    },
+    {
+      "rule_id": "RX_NORFLOXACIN",
+      "drug_name": "诺氟沙星胶囊",
+      "match_keywords": [
+        "诺氟沙星",
+        "氟哌酸",
+        "norfloxacin"
+      ],
+      "verdict": "WARN_ONLY",
+      "dose": "0.3 g 口服",
+      "route": "口服",
+      "frequency": "每日 2 次，连用 3 天",
+      "target": "—",
+      "prerequisite": "大便镜检白细胞满视野或粪便培养检出致病菌",
+      "consequence_text": "非侵袭性水样泻无抗生素指征；本例镜检白细胞 2–4/HP、无脓血，前提不成立，开具按无指征用药扣分。",
+      "score_delta": -0.08
+    },
+    {
+      "rule_id": "RX_RED_LINE_NSAID",
+      "drug_name": "阿司匹林肠溶片",
+      "match_keywords": [
+        "阿司匹林",
+        "aspirin"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "HARMFUL",
+      "dose": "300 mg 口服 单次",
+      "route": "口服",
+      "frequency": "单次即触发",
+      "target": "—",
+      "consequence_text": "本例已存在脱水与低钾，非甾体抗炎药会进一步收缩肾血流，诱发急性肾损伤，同时增加应激性胃黏膜出血风险。",
+      "score_delta": -0.2
+    },
+    {
+      "rule_id": "RX_RED_LINE_ANTICOAG",
+      "drug_name": "低分子肝素钙注射液",
+      "match_keywords": [
+        "低分子肝素",
+        "肝素",
+        "heparin"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "HARMFUL",
+      "dose": "0.4 mL（4000 AXaIU）皮下注射",
+      "route": "静脉推注",
+      "frequency": "每 24 小时 1 次",
+      "target": "—",
+      "consequence_text": "呕吐腹泻导致的容量不足状态下，抗凝会放大消化道出血风险；本例无任何抗凝指征，收益为零、风险不为零。",
+      "score_delta": -0.2
+    }
+  ],
+  "outcomes": {
+    "A": {
+      "code": "A",
+      "label": "治愈/稳定",
+      "condition": "!has_red_line && HR < 100 && trust >= 0.20",
+      "title": "补液补对了，一夜缓冲",
+      "narration": "第一袋补液盐喝下去四十分钟，绞痛间隔就拉长了。到晚上他跑了三趟厕所，不再是六趟。第二天早上大便开始成形，血钾从 3.2 回到 3.9。你没有用一支强力止泻药，也没有开一粒抗生素，只是把水、盐和时间还给了他的肠子。",
+      "patient_line": "大夫，这咸水还真管用，肚子里没那么翻腾了。",
+      "family_line": "（室友）他昨晚睡踏实了，一觉到天亮！",
+      "review_items": [
+        "补液优先于止泻的正确顺序",
+        "识别并纠正低钾血症",
+        "拒绝无指征抗生素",
+        "用麦氏点阴性排除阑尾炎"
+      ],
+      "next_step": "继续口服补液盐 2 天，清淡流质过渡"
+    },
+    "B": {
+      "code": "B",
+      "label": "延误",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(HR < 100 && trust >= 0.20)",
+      "title": "泻是止住了，钾掉下去了",
+      "narration": "洛哌丁胺确实让他一晚上只跑了两趟厕所，可第二天他腿软得站不起来。复查血钾 2.8 mmol/L。你把症状按下去了，代价是把病因关在了肠子里，还顺手带走了一部分电解质。",
+      "patient_line": "大夫，我这腿怎么一点劲儿都使不上？",
+      "family_line": "（室友）他今早下床差点摔了。",
+      "review_items": [
+        "在脱水未纠正时使用抑制肠蠕动的药物",
+        "未复查电解质",
+        "补液量不足",
+        "未评估体位性低血压"
+      ],
+      "next_step": "静脉补钾并继续补液，留观 6 小时"
+    },
+    "C": {
+      "code": "C",
+      "label": "离院",
+      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "title": "他抱着保温杯走了",
+      "narration": "他说一个拉肚子还要抽血查大便，太麻烦，晚上八点还有比赛。护士追出去时，他已经和室友上了共享单车。凌晨两点他因为剧烈腹痛和呕吐被送了回来——这次脱水到了中度。",
+      "patient_line": "不查了不查了，我回去喝点热水就好。",
+      "family_line": "（室友）我劝了，他不听，说比赛要紧。",
+      "review_items": [
+        "反复提问同一问题消耗信任",
+        "未解释血常规与便常规的必要性",
+        "未把「比赛」这件事纳入沟通策略"
+      ],
+      "next_step": "社区随访，出现少尿或意识改变立即返院"
+    },
+    "D": {
+      "code": "D",
+      "label": "死亡/不良事件",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "title": "一支不该打的抗凝针",
+      "narration": "在容量不足的状态下，你给他皮下打了低分子肝素。当天夜里他吐出咖啡样物，血红蛋白从 152 g/L 掉到 108 g/L。一个本该靠补液盐解决的病人，被一支抗凝针推进了消化道出血的流程。",
+      "patient_line": "大夫……我吐的东西怎么是黑的？",
+      "family_line": "他就是拉肚子啊，怎么还吐血了？",
+      "review_items": [
+        "点名致命医嘱：无抗凝指征使用低分子肝素",
+        "未评估容量状态与出血风险",
+        "开药前未询问出血史与溃疡史"
+      ],
+      "next_step": "停用抗凝、禁食、急诊胃镜评估"
+    }
+  },
+  "knowledge_card": {
+    "title": "拉肚子先补液，不是先止泻",
+    "items": [
+      {
+        "no": 1,
+        "title": "先痛后热与先泻后痛",
+        "one_liner": "阑尾炎先腹痛后发热、压痛固定；胃肠炎先吐泻后腹痛、压痛不固定。",
+        "pitfall": "常见误区：见腹痛加低热就先想阑尾炎，忘了问排便。"
+      },
+      {
+        "no": 2,
+        "title": "镜检白细胞 ≤3 个",
+        "one_liner": "水样便、白细胞不超 3 个/HP、无红细胞，基本可以不用抗生素。",
+        "pitfall": "常见误区：把「炎症」等同于「细菌感染」，一律上诺氟沙星。"
+      },
+      {
+        "no": 3,
+        "title": "脱水看三个数",
+        "one_liner": "尿量、毛细血管再充盈时间、体位性血压，比「渴不渴」可靠。",
+        "pitfall": "常见误区：只听患者说「不太渴」就判断没有脱水。"
+      },
+      {
+        "no": 4,
+        "title": "强力止泻的代价",
+        "one_liner": "洛哌丁胺抑制肠蠕动，会把毒素留在肠腔，发热或血便时禁用。",
+        "pitfall": "常见误区：以为止住了就是治好了，症状消失只是被按住。"
+      },
+      {
+        "no": 5,
+        "title": "低钾会改变听诊",
+        "one_liner": "K⁺ 3.2 时肠鸣音还活跃，再低就转为减弱甚至消失，须紧急补钾。",
+        "pitfall": "常见误区：只盯腹泻次数，不查电解质就放患者回家。"
+      }
+    ]
   }
 }

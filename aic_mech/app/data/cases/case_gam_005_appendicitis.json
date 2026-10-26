@@ -11,12 +11,22 @@
     "age": 29,
     "occupation": "互联网公司后端工程师（项目冲刺期）",
     "past_history": "体健；常年外卖饮食、久坐熬夜；无手术史、无药物过敏史",
-    "family_companion": "无（独自就诊，手机里是催进度的项目群）"
+    "family_companion": "无（独自就诊，手机里是催进度的项目群）",
+    "medication_history": [
+      "否认长期用药"
+    ],
+    "allergy_history": "否认药物及食物过敏"
   },
   "initial_vitals": {
-    "hr": 98, "sbp": 126, "dbp": 80, "spo2": 98, "rr": 19, "pain_vas": 7,
+    "hr": 98,
+    "sbp": 126,
+    "dbp": 80,
+    "spo2": 98,
+    "rr": 19,
+    "pain_vas": 7,
     "ecg_rhythm": "窦性心律（稍快）",
-    "consciousness": "神志清楚，急性痛苦面容，行走时弯腰护腹、步态缓慢"
+    "consciousness": "神志清楚，急性痛苦面容，行走时弯腰护腹、步态缓慢",
+    "temperature_c": 38.2
   },
   "physical_exam_findings": {
     "general": "右下腹麦氏点固定压痛（+）、反跳痛（+）、局部肌紧张（+）；闭孔内肌征（+）；结肠充气试验（Rovsing征）（+）；肠鸣音3次/分（减弱）；肝浊音界存在（不支持空腔脏器穿孔）",
@@ -51,8 +61,18 @@
   "game_extensions": {
     "short_intro": "右下腹痛的程序员一边喊疼一边想上线评审，“先痛后热”和“麦氏点固定压痛”是他与胃肠炎之间的生死线——这条线，由你来划。",
     "symptoms": {
-      "unique": ["转移性右下腹痛（脐周→麦氏点）", "麦氏点固定压痛+反跳痛+肌紧张", "先厌食腹痛、后发热", "行走时右下腹痛加重（弯腰护腹步态）"],
-      "shared": ["恶心", "低热", "食欲不振", "乏力"]
+      "unique": [
+        "转移性右下腹痛（脐周→麦氏点）",
+        "麦氏点固定压痛+反跳痛+肌紧张",
+        "先厌食腹痛、后发热",
+        "行走时右下腹痛加重（弯腰护腹步态）"
+      ],
+      "shared": [
+        "恶心",
+        "低热",
+        "食欲不振",
+        "乏力"
+      ]
     },
     "decoy_diagnoses": [
       {
@@ -71,7 +91,13 @@
         "differentiation": "穿孔：突发刀割样剧痛起于上腹、迅速蔓延全腹、板状腹（腹肌硬如木板）、肝浊音界消失、膈下游离气体；本例肝浊音界存在、疼痛固定右下腹"
       }
     ],
-    "required_exams": ["腹部查体（麦氏点压痛/反跳痛/肌紧张三联+Rovsing征）", "血常规+CRP", "尿常规（排除结石）", "腹部超声", "体温曲线（先痛后热验证）"],
+    "required_exams": [
+      "腹部查体（麦氏点压痛/反跳痛/肌紧张三联+Rovsing征）",
+      "血常规+CRP",
+      "尿常规（排除结石）",
+      "腹部超声",
+      "体温曲线（先痛后热验证）"
+    ],
     "redundant_exams_hint": "腹部增强CT在超声已确诊且无并发症时属可选项（教学：权衡后可选）；胃镜纯属冗余",
     "confirmed_diagnosis": "急性阑尾炎（化脓性，未穿孔）",
     "treatment_plan": {
@@ -84,8 +110,16 @@
         "6. 术后护理：去枕平卧6小时→早期下床活动→流质逐步过渡"
       ],
       "medications": [
-        {"name": "静脉补液（乳酸林格液）", "usage": "术前补液维持", "purpose": "禁食期容量支持"},
-        {"name": "预防性抗生素（如头孢唑林+甲硝唑，医嘱）", "usage": "术前30分钟静脉给药", "purpose": "围术期感染预防"}
+        {
+          "name": "静脉补液（乳酸林格液）",
+          "usage": "术前补液维持",
+          "purpose": "禁食期容量支持"
+        },
+        {
+          "name": "预防性抗生素（如头孢唑林+甲硝唑，医嘱）",
+          "usage": "术前30分钟静脉给药",
+          "purpose": "围术期感染预防"
+        }
       ],
       "contraindications": [
         "❌ 泻药/灌肠：肠蠕动加剧可诱发阑尾穿孔——急腹症禁用！",
@@ -95,7 +129,13 @@
         "❌ “忍一忍等上线”——延误6小时以上穿孔风险成倍上升"
       ]
     },
-    "nursing_plan": ["术前：禁食禁水宣教、心理安抚（缓解“请假焦虑”）", "术后6小时：去枕平卧、监测生命体征", "术后第1天：协助早期下床（预防肠粘连与深静脉血栓）", "饮食：肛门排气后流质→半流质渐进", "出院宣教：切口护理、两周内避免剧烈运动、复查"],
+    "nursing_plan": [
+      "术前：禁食禁水宣教、心理安抚（缓解“请假焦虑”）",
+      "术后6小时：去枕平卧、监测生命体征",
+      "术后第1天：协助早期下床（预防肠粘连与深静脉血栓）",
+      "饮食：肛门排气后流质→半流质渐进",
+      "出院宣教：切口护理、两周内避免剧烈运动、复查"
+    ],
     "persona": {
       "personality": "焦虑型完美主义、工作强迫症，疼痛值7还在回工作群消息；嘴上说“命要紧”，身体很诚实地弯成虾米",
       "tone": "语速快、爱用职场黑话（需求/上线/排期），疼起来语速骤降",
@@ -103,13 +143,62 @@
     },
     "backstory": "周子昂负责的系统三天后要上线，他已经连续加班两周，三餐全靠外卖。昨晚加班时肚脐周围开始隐隐作痛，他以为是“外卖吃坏了”，灌了杯热水继续写代码。今早疼痛“精准迁移”到右下腹，走路都得弓着腰，打车来医院的后座上还在开电话会。治好他的关键是：让这位“需求永远排第一”的工程师接受一件事——阑尾可以下线，人不行。",
     "animation_states": [
-      {"state": "idle_normal", "name": "正常站姿（强撑办公人）", "frames": 6, "loop": true, "trigger": "接诊默认", "desc": "格子衫+双肩包，单手回手机消息，眉头紧锁"},
-      {"state": "guard_rlq_bend", "name": "护右下腹弯腰", "frames": 6, "loop": true, "trigger": "问诊症状", "desc": "右手死死按住右下腹、身体右倾折叠，额头冒汗"},
-      {"state": "rebound_flinch", "name": "反跳痛缩颤", "frames": 5, "loop": false, "trigger": "查体反跳痛检查", "desc": "查体手抬起瞬间整个人弹一下、倒吸冷气、眼角抽动（教学高光动画）"},
-      {"state": "walking_hunched", "name": "弯腰缓行", "frames": 6, "loop": true, "trigger": "前往检查室/术前", "desc": "弓腰驼背小碎步，一手扶墙一手护腹，行走的“阑尾炎教科书”"},
-      {"state": "phone_anxious", "name": "焦虑刷手机", "frames": 5, "loop": true, "trigger": "等待结果/术前谈话", "desc": "忍着痛打字回消息，手指发抖，屏幕冷光映脸"},
-      {"state": "postop_recovery", "name": "术后缓行康复", "frames": 6, "loop": false, "trigger": "治疗完成", "desc": "病号服、手扶输液架缓慢直腰行走，疼痛数值条肉眼可见下降"},
-      {"state": "cured_relax", "name": "治愈·舒展放松", "frames": 5, "loop": false, "trigger": "治疗完成", "desc": "直立身体长舒气，把手机塞回兜里，露出如释重负的笑"}
+      {
+        "state": "idle_normal",
+        "name": "正常站姿（强撑办公人）",
+        "frames": 6,
+        "loop": true,
+        "trigger": "接诊默认",
+        "desc": "格子衫+双肩包，单手回手机消息，眉头紧锁"
+      },
+      {
+        "state": "guard_rlq_bend",
+        "name": "护右下腹弯腰",
+        "frames": 6,
+        "loop": true,
+        "trigger": "问诊症状",
+        "desc": "右手死死按住右下腹、身体右倾折叠，额头冒汗"
+      },
+      {
+        "state": "rebound_flinch",
+        "name": "反跳痛缩颤",
+        "frames": 5,
+        "loop": false,
+        "trigger": "查体反跳痛检查",
+        "desc": "查体手抬起瞬间整个人弹一下、倒吸冷气、眼角抽动（教学高光动画）"
+      },
+      {
+        "state": "walking_hunched",
+        "name": "弯腰缓行",
+        "frames": 6,
+        "loop": true,
+        "trigger": "前往检查室/术前",
+        "desc": "弓腰驼背小碎步，一手扶墙一手护腹，行走的“阑尾炎教科书”"
+      },
+      {
+        "state": "phone_anxious",
+        "name": "焦虑刷手机",
+        "frames": 5,
+        "loop": true,
+        "trigger": "等待结果/术前谈话",
+        "desc": "忍着痛打字回消息，手指发抖，屏幕冷光映脸"
+      },
+      {
+        "state": "postop_recovery",
+        "name": "术后缓行康复",
+        "frames": 6,
+        "loop": false,
+        "trigger": "治疗完成",
+        "desc": "病号服、手扶输液架缓慢直腰行走，疼痛数值条肉眼可见下降"
+      },
+      {
+        "state": "cured_relax",
+        "name": "治愈·舒展放松",
+        "frames": 5,
+        "loop": false,
+        "trigger": "治疗完成",
+        "desc": "直立身体长舒气，把手机塞回兜里，露出如释重负的笑"
+      }
     ],
     "dialogue_layers": {
       "greeting": [
@@ -163,5 +252,494 @@
       "postop": "【状态提示】术后疼痛VAS 4→3 → 良好，早期下床开始",
       "cured": "【状态提示】体温正常 · 切口愈合可 —— 出院宣教后道别"
     }
+  },
+  "present_illness": {
+    "onset": "1 天前夜间起病，脐周隐痛持续约 14 小时后转移并固定于右下腹",
+    "character": "持续性胀痛伴阵发加剧，VAS 7 分，咳嗽与行走时明显加重",
+    "radiation": "无放射痛，不向会阴及大腿内侧放射，亦不向腰背放射",
+    "trigger": "连续两周加班、三餐外卖，无明确不洁饮食",
+    "relief": "屈膝侧卧与弯腰护腹可稍减轻，腹部热敷无效，未服用止痛药"
+  },
+  "risk_factors": [
+    "连续两周加班、作息与饮食极不规律",
+    "长期外卖饮食、膳食纤维摄入不足",
+    "29 岁男性，处于阑尾炎高发年龄段",
+    "发病后坚持工作 14 小时未就诊",
+    "既往无手术史，阑尾未切除"
+  ],
+  "key_positives": [
+    "转移性右下腹痛，麦氏点固定压痛伴反跳痛与肌紧张",
+    "闭孔内肌征与 Rovsing 征阳性",
+    "体温 38.2℃，WBC 13.6×10⁹/L、中性 86%、CRP 48 mg/L"
+  ],
+  "key_negatives": [
+    "肝浊音界存在，无板状腹",
+    "尿常规红细胞 0–1/HP，无镜下血尿"
+  ],
+  "inquiry_points": [
+    "询问腹痛起始部位与是否发生转移（脐周→右下腹）",
+    "询问疼痛性质、程度以及是否随行走咳嗽加重",
+    "询问有无恶心呕吐及呕吐与腹痛的先后顺序",
+    "询问食欲与进食情况（厌食是阑尾炎早期表现）",
+    "询问排便情况（有无腹泻、里急后重）",
+    "询问有无尿频尿急尿痛与血尿",
+    "询问发热时间与热型，以及腹痛与发热的先后",
+    "询问既往史、手术史、用药史与药物过敏史（开药前必问）"
+  ],
+  "differentials": [
+    {
+      "name": "急性胃肠炎",
+      "why_support": "同样表现为腹痛、恶心与低热",
+      "why_not": "本例先腹痛后发热、无腹泻，压痛固定于麦氏点并伴反跳痛与肌紧张；胃肠炎是先吐泻后腹痛、压痛不固定"
+    },
+    {
+      "name": "右输尿管结石",
+      "why_support": "同样有右侧腹痛伴恶心、疼痛评分高",
+      "why_not": "无向会阴或大腿内侧放射的绞痛、无辗转不安体位，尿常规红细胞 0–1/HP 未见镜下血尿"
+    },
+    {
+      "name": "胃十二指肠溃疡穿孔",
+      "why_support": "同样为急性腹痛，可自上腹起病",
+      "why_not": "肝浊音界存在、无板状腹、腹部平片无膈下游离气体，疼痛固定于右下腹而非全腹弥漫"
+    }
+  ],
+  "emotion_scripts": {
+    "E1_CONSULT": {
+      "high": "大夫好，我这肚子疼了一天，今天早上跑到右下边来了，您给我好好看看。",
+      "mid": "大夫……其实，应该是昨晚外卖的事，但今天这疼法，感觉不太对。",
+      "low": "疼倒能忍，主要是我下午三点有个上线评审，咱们能不能快点？"
+    },
+    "E2_PAIN_DETAIL": {
+      "high": "昨晚是肚脐周围隐隐疼，今早它搬到右下腹了，走路都扯着疼，一直没胃口。",
+      "mid": "就是这儿，一按就疼，松手那下更疼。早上吐过一次，体温三十八度二。",
+      "low": "别问那么多了，先给我开点止疼药行不行？我下午还有评审。"
+    },
+    "E3_PHYSICAL": {
+      "high": "您按吧，我不动。哎——松手那下是真疼，比按下去还疼。",
+      "mid": "轻点儿轻点儿……大夫，我这不是要开刀吧？我可不想耽误上线。",
+      "low": "别按了别按了！越按越疼，我弯着腰还舒服点。"
+    },
+    "E4_WAIT_LAB": {
+      "high": "行，我等着。反正也走不动了，就在这儿靠着。",
+      "mid": "还得等多久？我这肚子一阵一阵地绞，能不能先给我止止疼？",
+      "low": "等什么等！一个肚子疼查这么多，你们是不是想多收钱？"
+    },
+    "E5_RX": {
+      "high": "禁食禁水是吧？行，我把这杯奶茶扔了。命要紧，需求可以再排期。",
+      "mid": "不能吃喝？那我这下午的评审……行吧，我先给 leader 打电话请假。",
+      "low": "不让吃不让喝还让我住院？我项目三天后上线，你们知道吗！"
+    },
+    "E6_PRE_OUTCOME": {
+      "high": "谢谢大夫。我悟了——阑尾说下线就下线，需求凭什么不能延期？",
+      "mid": "那我先做手术……出院以后还能正常上班吧？",
+      "low": "我不做手术，我签个字自己走，出了事我自己负责。"
+    }
+  },
+  "exam_options": [
+    {
+      "exam_id": "PE_ABDOMEN",
+      "name": "腹部触诊（麦氏点压痛、反跳痛与肌紧张）",
+      "match_keywords": [
+        "腹部触诊",
+        "麦氏点",
+        "反跳痛",
+        "触诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "腹软，全腹无压痛、反跳痛及肌紧张，麦氏点无压痛，肝浊音界存在。",
+        "abnormal": "右下腹麦氏点固定压痛（+），抬手瞬间反跳痛（+），局部肌紧张（+）；肝浊音界存在，未扪及包块。"
+      },
+      "clinical_point": "三联征同时出现，基本可以锁定外科急腹症，剩下的只是「多快送手术室」。"
+    },
+    {
+      "exam_id": "PE_SPECIAL_SIGNS",
+      "name": "腹部特殊体征查体（闭孔内肌征、腰大肌征、Rovsing 征）",
+      "match_keywords": [
+        "特殊体征",
+        "闭孔内肌征",
+        "rovsing",
+        "查体"
+      ],
+      "duration_seconds": 90,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "闭孔内肌征、腰大肌征、Rovsing 征均阴性。",
+        "abnormal": "闭孔内肌征（+），Rovsing 征（+），腰大肌征（±）。"
+      },
+      "clinical_point": "三个体征各 30 秒，还能顺带判断阑尾是盆腔位还是盲肠后位。"
+    },
+    {
+      "exam_id": "PE_BOWEL_SOUND",
+      "name": "腹部听诊（肠鸣音）",
+      "match_keywords": [
+        "肠鸣音",
+        "腹部听诊",
+        "听诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "肠鸣音 4 次/分，音调正常，未闻及气过水声。",
+        "abnormal": "肠鸣音 3 次/分，音调减弱，未闻及气过水声及金属音。"
+      },
+      "clinical_point": "肠鸣音减弱提示炎症已波及腹膜，是「不能再等」的信号。"
+    },
+    {
+      "exam_id": "PE_GENERAL_TEMP",
+      "name": "一般情况与体温评估",
+      "match_keywords": [
+        "一般情况",
+        "体温",
+        "查体"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "体温 36.8℃，一般情况良好，无脱水貌。",
+        "abnormal": "体温 38.2℃，急性痛苦面容，行走时弯腰护腹，无黄疸、无脱水貌。"
+      },
+      "clinical_point": "先痛后热是阑尾炎；先热后痛要想到内科病或已经穿孔。"
+    },
+    {
+      "exam_id": "PE_URINARY",
+      "name": "肾区叩击与输尿管走行区触诊",
+      "match_keywords": [
+        "肾区叩击",
+        "输尿管",
+        "触诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "双肾区无叩击痛，输尿管走行区无压痛，膀胱区无膨隆。",
+        "abnormal": "双肾区无叩击痛，输尿管走行区无压痛，膀胱区无膨隆。"
+      },
+      "clinical_point": "肾区无叩痛，把泌尿系结石这条支路压下去一半。"
+    }
+  ],
+  "lab_panels": [
+    {
+      "panel_id": "LAB_CBC",
+      "name": "急诊血常规 (CBC)",
+      "alias": [
+        "血常规",
+        "cbc",
+        "白细胞"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "WBC 13.6×10⁹/L，中性粒细胞 86%，Hb 148 g/L，PLT 246×10⁹/L",
+      "ref_range": "WBC 3.5–9.5×10⁹/L，中性粒细胞 40–75%",
+      "conclusion": "白细胞与中性粒细胞比例明显升高，符合细菌性炎症。",
+      "clinical_hint": "中性粒细胞 86% 比白细胞总数更能说明「这是细菌」。"
+    },
+    {
+      "panel_id": "LAB_CRP",
+      "name": "C 反应蛋白 (CRP)",
+      "alias": [
+        "crp",
+        "c反应蛋白",
+        "反应蛋白"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "CRP 48 mg/L",
+      "ref_range": "<10 mg/L",
+      "conclusion": "显著升高，与急性细菌性炎症相符。",
+      "clinical_hint": "CRP 在发病 6–8 小时后才明显上升，太早查可能还在正常范围。"
+    },
+    {
+      "panel_id": "IMG_ABD_US",
+      "name": "腹部超声（阑尾区）",
+      "alias": [
+        "腹部超声",
+        "阑尾超声",
+        "ultrasound"
+      ],
+      "modality": "ULTRASOUND",
+      "tat_seconds": 300,
+      "is_key": true,
+      "is_gold_standard": true,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "右下腹探及肿胀阑尾，外径 6.8 mm（正常 <6 mm），管壁增厚，周围少量渗出；未见粪石梗阻及周围脓肿",
+      "ref_range": "阑尾外径 <6 mm",
+      "conclusion": "符合急性阑尾炎（化脓性早期，未穿孔），手术指征明确。",
+      "clinical_hint": "300 秒就能拿到决定性图像，比等 CT 的 1200 秒划算得多。"
+    },
+    {
+      "panel_id": "LAB_URINE",
+      "name": "尿常规 (Urinalysis)",
+      "alias": [
+        "尿常规",
+        "尿液",
+        "urine"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 300,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "RBC 0–1/HP，WBC 1–2/HP，蛋白阴性，未见管型",
+      "ref_range": "RBC 0–3/HP，WBC 0–5/HP，蛋白阴性",
+      "conclusion": "未见镜下血尿与脓尿，不支持泌尿系结石与尿路感染。",
+      "clinical_hint": "一张尿常规，是排除输尿管结石最便宜的一刀。"
+    },
+    {
+      "panel_id": "IMG_ABD_CT",
+      "name": "腹部 CT 平扫（阑尾区）",
+      "alias": [
+        "腹部ct",
+        "ct平扫",
+        "abdominal ct"
+      ],
+      "modality": "IMAGING",
+      "tat_seconds": 1200,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": true,
+      "decision_window": "BEYOND_CLOCK",
+      "result_text": "阑尾增粗 7.2 mm，周围脂肪间隙模糊，未见粪石、未见脓肿及游离气体",
+      "ref_range": "—",
+      "conclusion": "急性阑尾炎，未见穿孔与脓肿。",
+      "clinical_hint": "超声已能确诊时 CT 属可选项——本例多花 900 秒只换来更清晰的同一结论。"
+    },
+    {
+      "panel_id": "LAB_COAG",
+      "name": "凝血四项",
+      "alias": [
+        "凝血",
+        "inr",
+        "aptt",
+        "pt"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 1800,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "BEYOND_CLOCK",
+      "result_text": "PT 12.6 s，INR 1.03，APTT 30.8 s，FIB 3.6 g/L",
+      "ref_range": "PT 11–14 s，INR 0.8–1.2，APTT 28–42 s，FIB 2–4 g/L",
+      "conclusion": "凝血功能正常，可耐受手术。",
+      "clinical_hint": "术前必备，但可与手术室沟通并行，不必等它回报才叫外科。"
+    }
+  ],
+  "prescription_rules": [
+    {
+      "rule_id": "RX_CEFAZOLIN",
+      "drug_name": "注射用头孢唑林钠",
+      "match_keywords": [
+        "头孢唑林",
+        "cefazolin",
+        "预防用抗生素"
+      ],
+      "verdict": "SUPPORTIVE",
+      "dose": "2 g 溶于 100 mL 0.9% 氯化钠注射液",
+      "route": "静脉滴注",
+      "frequency": "术前 30–60 分钟单次，手术超过 4 小时追加 1 次",
+      "target": "—",
+      "consequence_text": "覆盖皮肤定植菌与肠道革兰阴性菌，降低切口与腹腔感染率。",
+      "score_delta": 0.03
+    },
+    {
+      "rule_id": "RX_LACTATED_RINGER",
+      "drug_name": "乳酸林格液",
+      "match_keywords": [
+        "乳酸林格",
+        "林格液",
+        "ringer"
+      ],
+      "verdict": "SUPPORTIVE",
+      "dose": "500 mL",
+      "route": "静脉滴注",
+      "frequency": "术前 30 分钟内滴完，术后按出入量调整",
+      "target": "尿量 >0.5 mL/kg/h",
+      "consequence_text": "禁食禁饮期间的容量支持，避免麻醉诱导时出现低血压。",
+      "score_delta": 0.03
+    },
+    {
+      "rule_id": "RX_MORPHINE",
+      "drug_name": "盐酸吗啡注射液",
+      "match_keywords": [
+        "吗啡",
+        "morphine"
+      ],
+      "verdict": "WARN_ONLY",
+      "dose": "3 mg 静脉缓慢推注",
+      "route": "静脉推注",
+      "frequency": "单次，必要时 10 分钟后追加 2 mg",
+      "target": "VAS ≤3",
+      "prerequisite": "已完成查体并记录基线体征，且外科会诊已到位",
+      "consequence_text": "诊断未明确前使用强效镇痛会掩盖反跳痛与肌紧张；确诊并决定手术后按需镇痛才是合理的。",
+      "score_delta": -0.04
+    },
+    {
+      "rule_id": "RX_LOPERAMIDE",
+      "drug_name": "盐酸洛哌丁胺胶囊",
+      "match_keywords": [
+        "洛哌丁胺",
+        "易蒙停",
+        "loperamide"
+      ],
+      "verdict": "WARN_ONLY",
+      "dose": "2 mg 口服",
+      "route": "口服",
+      "frequency": "单次",
+      "target": "—",
+      "prerequisite": "已通过查体与影像排除外科急腹症",
+      "consequence_text": "抑制肠蠕动会升高阑尾腔内压、加速穿孔，急腹症未排除前属禁忌。",
+      "score_delta": -0.06
+    },
+    {
+      "rule_id": "RX_RED_LINE_THROMBOLYTIC",
+      "drug_name": "注射用阿替普酶",
+      "match_keywords": [
+        "阿替普酶",
+        "alteplase",
+        "rt-pa",
+        "尿激酶",
+        "urokinase"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "LETHAL",
+      "dose": "0.9 mg/kg（最大 90 mg）静脉溶栓",
+      "route": "静脉泵入",
+      "frequency": "单次即触发",
+      "target": "—",
+      "consequence_text": "对一个正在进展的化脓性阑尾炎使用溶栓药，会造成腹腔与切口难以控制的出血并掩盖感染进展；本例无任何血栓性疾病溶栓指征，属绝对禁忌。",
+      "score_delta": -0.2
+    },
+    {
+      "rule_id": "RX_RED_LINE_ANTICOAG",
+      "drug_name": "低分子肝素钙注射液",
+      "match_keywords": [
+        "低分子肝素",
+        "肝素",
+        "heparin"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "HARMFUL",
+      "dose": "0.4 mL（4000 AXaIU）皮下注射",
+      "route": "静脉推注",
+      "frequency": "每 24 小时 1 次",
+      "target": "—",
+      "consequence_text": "急诊手术前 12 小时内使用低分子肝素会显著增加术中出血与硬膜外血肿风险，通常迫使手术推迟；本例无任何抗凝指征。",
+      "score_delta": -0.2
+    }
+  ],
+  "outcomes": {
+    "A": {
+      "code": "A",
+      "label": "治愈/稳定",
+      "condition": "!has_red_line && HR < 100 && trust >= 0.20",
+      "title": "阑尾下线，人还在线",
+      "narration": "从进门到进手术室一共 96 分钟。腹腔镜下看到阑尾已经化脓但还没穿孔，断端处理得很干净。术后第一天他扶着输液架在走廊里走了两圈，手机架在支架上开着评审会。他说：需求可以延期，阑尾不行。",
+      "patient_line": "大夫，我这回真服了——阑尾说下线就下线。",
+      "family_line": "（同事）他让我们把评审改线上了，说命比需求重要。",
+      "review_items": [
+        "识别转移性右下腹痛并完成定位",
+        "用超声 300 秒取得决定性证据",
+        "及时禁食禁水并启动外科会诊",
+        "全程未使用掩盖体征的强效镇痛"
+      ],
+      "next_step": "术后 24 小时下床，第 3 天出院"
+    },
+    "B": {
+      "code": "B",
+      "label": "延误",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(HR < 100 && trust >= 0.20)",
+      "title": "等一张 CT，等来一个穿孔",
+      "narration": "超声 300 秒就给了答案，你却坚持等 CT 的 1200 秒。等图像回来时，右下腹的压痛已经从局部蔓延到全腹，反跳痛更明显了。手术还是做了，只是从「早期化脓」变成了「穿孔伴局限性腹膜炎」，住院日多了四天。",
+      "patient_line": "大夫，怎么越等越疼了？现在整个肚子都疼。",
+      "family_line": "（同事）他不是早上还能自己走吗？怎么越来越重了？",
+      "review_items": [
+        "在超声已确诊时仍等待 CT",
+        "未在等待期间复评体征",
+        "未及时启动外科会诊"
+      ],
+      "next_step": "急诊手术 + 腹腔冲洗，延长抗生素疗程"
+    },
+    "C": {
+      "code": "C",
+      "label": "离院",
+      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "title": "他把奶茶又拎回去了",
+      "narration": "他嫌禁食禁水太麻烦，也怕耽误下午的上线评审，签了「自动出院」就走了，走的时候还在回消息。第二天凌晨他被同事抬回来，全腹板状腹，体温 39.4℃。",
+      "patient_line": "我不做手术，我签个字自己走，出了事我自己负责。",
+      "family_line": "（同事）我们劝不住，他说评审比手术重要。",
+      "review_items": [
+        "未把「工作压力」纳入沟通策略",
+        "未说明延误的具体后果与时间窗",
+        "未联系家属或同事共同劝说"
+      ],
+      "next_step": "急诊手术，术后 ICU 监护"
+    },
+    "D": {
+      "code": "D",
+      "label": "死亡/不良事件",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "title": "一支溶栓针，一台收不了的手术",
+      "narration": "你把他当成了别的病，推了一支阿替普酶。开腹时整个右下腹都是渗血，止血花了四十分钟，视野里分不清哪是阑尾哪是血管。穿孔、出血、感染性休克叠在一起，ICU 住了十九天。",
+      "patient_line": "（术后带管，无法应答）",
+      "family_line": "他就是个肚子疼啊……怎么就进了重症监护？",
+      "review_items": [
+        "点名致命医嘱：给外科急腹症使用溶栓药",
+        "未核对用药适应证",
+        "延误了唯一有效的治疗——手术"
+      ],
+      "next_step": "死亡/严重不良事件讨论与上报"
+    }
+  },
+  "knowledge_card": {
+    "title": "右下腹痛：先问转移，再摸麦氏点",
+    "items": [
+      {
+        "no": 1,
+        "title": "转移性右下腹痛",
+        "one_liner": "脐周起病、数小时后固定到右下腹，是阑尾炎最有价值的一条病史。",
+        "pitfall": "常见误区：只问「现在哪儿疼」，不问「一开始哪儿疼」。"
+      },
+      {
+        "no": 2,
+        "title": "先痛后热",
+        "one_liner": "阑尾炎先腹痛后发热；先发热后腹痛要想到内科病或已穿孔。",
+        "pitfall": "常见误区：按「发热加腹痛」直接诊断胃肠炎。"
+      },
+      {
+        "no": 3,
+        "title": "三联征的分量",
+        "one_liner": "固定压痛、反跳痛、肌紧张同时出现，意味着炎症已波及腹膜。",
+        "pitfall": "常见误区：只查压痛就下结论，漏掉反跳痛与肌紧张。"
+      },
+      {
+        "no": 4,
+        "title": "尿常规排结石",
+        "one_liner": "右侧腹痛伴恶心时，一张尿常规就能把输尿管结石压下去大半。",
+        "pitfall": "常见误区：直接开 CT，跳过最便宜的尿常规。"
+      },
+      {
+        "no": 5,
+        "title": "禁食禁水是第一道医嘱",
+        "one_liner": "确诊或高度怀疑阑尾炎，立刻禁食禁水，为麻醉争取时间。",
+        "pitfall": "常见误区：让患者先喝点粥垫垫，增加麻醉误吸风险。"
+      }
+    ]
   }
 }

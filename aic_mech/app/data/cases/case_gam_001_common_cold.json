@@ -11,12 +11,22 @@
     "age": 55,
     "occupation": "退休教师 / 社区广场舞领队",
     "past_history": "身体健康，无慢性病史，无药物过敏史",
-    "family_companion": "独自前来（顺便买菜）"
+    "family_companion": "独自前来（顺便买菜）",
+    "medication_history": [
+      "否认长期用药（仅间断服用钙片）"
+    ],
+    "allergy_history": "否认药物及食物过敏"
   },
   "initial_vitals": {
-    "hr": 88, "sbp": 118, "dbp": 76, "spo2": 98, "rr": 16, "pain_vas": 2,
+    "hr": 88,
+    "sbp": 118,
+    "dbp": 76,
+    "spo2": 98,
+    "rr": 16,
+    "pain_vas": 2,
     "ecg_rhythm": "窦性心律",
-    "consciousness": "神志清楚，精神稍疲，讲话流利"
+    "consciousness": "神志清楚，精神稍疲，讲话流利",
+    "temperature_c": 37.8
   },
   "physical_exam_findings": {
     "general": "咽部轻度充血，扁桃体Ⅰ度肿大、无脓苔；鼻黏膜水肿，清涕；双肺呼吸音清，未闻及啰音",
@@ -41,8 +51,17 @@
   "game_extensions": {
     "short_intro": "话痨阿姨觉得自己“病得很重”，其实只是普通感冒——考你敢不敢不开抗生素。",
     "symptoms": {
-      "unique": ["流清水样鼻涕", "连续打喷嚏", "咽痒、咽部充血但无脓点", "低热37.8℃"],
-      "shared": ["乏力", "轻微肌肉酸痛", "鼻塞"]
+      "unique": [
+        "流清水样鼻涕",
+        "连续打喷嚏",
+        "咽痒、咽部充血但无脓点",
+        "低热37.8℃"
+      ],
+      "shared": [
+        "乏力",
+        "轻微肌肉酸痛",
+        "鼻塞"
+      ]
     },
     "decoy_diagnoses": [
       {
@@ -61,7 +80,12 @@
         "differentiation": "肺炎有咳痰加重+肺部湿啰音+胸片阴影；本例双肺呼吸音清"
       }
     ],
-    "required_exams": ["体温测量", "咽部视诊", "肺部听诊", "血常规"],
+    "required_exams": [
+      "体温测量",
+      "咽部视诊",
+      "肺部听诊",
+      "血常规"
+    ],
     "redundant_exams_hint": "胸片、CT、心电图对本例属冗余检查，会扣临床效率分",
     "confirmed_diagnosis": "急性上呼吸道感染（病毒性感冒）",
     "treatment_plan": {
@@ -72,14 +96,23 @@
         "4. 嘱多饮温水、保证休息，居家通风"
       ],
       "medications": [
-        {"name": "对乙酰氨基酚片", "usage": "0.5g 口服，发热不适时用，按说明书间隔", "purpose": "退热镇痛"}
+        {
+          "name": "对乙酰氨基酚片",
+          "usage": "0.5g 口服，发热不适时用，按说明书间隔",
+          "purpose": "退热镇痛"
+        }
       ],
       "contraindications": [
         "❌ 抗生素（头孢/阿莫西林等）：对病毒无效，滥用致耐药",
         "❌ 多种感冒药叠加使用：对乙酰氨基酚每日总量超标可致肝损伤"
       ]
     },
-    "nursing_plan": ["体温监测（每日2–3次直至正常）", "每日饮水1500–2000ml", "居室通风，避免去人群密集处", "若3天后仍高热或咳脓痰，及时复诊"],
+    "nursing_plan": [
+      "体温监测（每日2–3次直至正常）",
+      "每日饮水1500–2000ml",
+      "居室通风，避免去人群密集处",
+      "若3天后仍高热或咳脓痰，及时复诊"
+    ],
     "persona": {
       "personality": "热情话痨、爱唠家常、乐观，把小病当大病，最相信“挂水好得快”",
       "tone": "亲切絮叨型，句子里总带着生活细节",
@@ -87,12 +120,54 @@
     },
     "backstory": "王阿姨是社区广场舞的领队，后天就要带队参加街道汇演。今早出门着了凉，鼻涕直流，她担心“传染给姐妹们”，也怕耽误演出，一进诊室就拉着大夫说个不停。治好她的关键是：既要把病讲明白，也要把“不能乱用抗生素”这件事温柔地讲进她心里。",
     "animation_states": [
-      {"state": "idle_normal", "name": "正常站姿（轻病容）", "frames": 6, "loop": true, "trigger": "接诊默认", "desc": "站姿放松，偶尔抬手绢轻擦鼻尖，面色微红"},
-      {"state": "sneeze", "name": "打喷嚏", "frames": 5, "loop": false, "trigger": "问诊诱因/自主触发", "desc": "仰头酝酿→爆发低头喷嚏→用手绢捂鼻，身体小幅度前倾"},
-      {"state": "wipe_nose", "name": "擦鼻涕", "frames": 4, "loop": true, "trigger": "问诊症状", "desc": "掏出手绢反复轻擦鼻尖，眉头微皱"},
-      {"state": "hot_flush", "name": "低热擦汗", "frames": 5, "loop": true, "trigger": "发热症状显现", "desc": "扇动衣领、擦额角薄汗，脸颊两团腮红"},
-      {"state": "chat_gesture", "name": "唠家常手势", "frames": 4, "loop": true, "trigger": "信任度提升后闲聊", "desc": "比划广场舞动作，眉飞色舞，体现话痨人设"},
-      {"state": "cured_cheer", "name": "治愈·精神焕发", "frames": 6, "loop": false, "trigger": "治疗完成", "desc": "收拾手绢包、挺直腰板挥手道别，步伐轻快"}
+      {
+        "state": "idle_normal",
+        "name": "正常站姿（轻病容）",
+        "frames": 6,
+        "loop": true,
+        "trigger": "接诊默认",
+        "desc": "站姿放松，偶尔抬手绢轻擦鼻尖，面色微红"
+      },
+      {
+        "state": "sneeze",
+        "name": "打喷嚏",
+        "frames": 5,
+        "loop": false,
+        "trigger": "问诊诱因/自主触发",
+        "desc": "仰头酝酿→爆发低头喷嚏→用手绢捂鼻，身体小幅度前倾"
+      },
+      {
+        "state": "wipe_nose",
+        "name": "擦鼻涕",
+        "frames": 4,
+        "loop": true,
+        "trigger": "问诊症状",
+        "desc": "掏出手绢反复轻擦鼻尖，眉头微皱"
+      },
+      {
+        "state": "hot_flush",
+        "name": "低热擦汗",
+        "frames": 5,
+        "loop": true,
+        "trigger": "发热症状显现",
+        "desc": "扇动衣领、擦额角薄汗，脸颊两团腮红"
+      },
+      {
+        "state": "chat_gesture",
+        "name": "唠家常手势",
+        "frames": 4,
+        "loop": true,
+        "trigger": "信任度提升后闲聊",
+        "desc": "比划广场舞动作，眉飞色舞，体现话痨人设"
+      },
+      {
+        "state": "cured_cheer",
+        "name": "治愈·精神焕发",
+        "frames": 6,
+        "loop": false,
+        "trigger": "治疗完成",
+        "desc": "收拾手绢包、挺直腰板挥手道别，步伐轻快"
+      }
     ],
     "dialogue_layers": {
       "greeting": [
@@ -145,5 +220,490 @@
       "after_antipyretic": "【状态提示】体温回落至37.2℃，心率85 —— 对症处理生效",
       "cured": "【状态提示】症状缓解 · 宣教完成 —— 可以安心道别啦"
     }
+  },
+  "present_illness": {
+    "onset": "1天前傍晚广场舞散场后受凉，当晚即出现鼻部症状，今晨加重",
+    "character": "清水样鼻涕、连续喷嚏、咽痒伴轻度咽痛，疼痛 VAS 2 分",
+    "radiation": "无放射痛，症状局限于鼻咽部，不向耳部及下颌放射",
+    "trigger": "跳舞后大汗受风着凉，当晚未及时添衣",
+    "relief": "多饮温水、休息后鼻塞稍减轻，未服用任何药物"
+  },
+  "risk_factors": [
+    "55岁女性",
+    "受凉后起病（大汗后吹风）",
+    "近期带队排练疲劳、睡眠不足",
+    "同住家人无感冒病例（非聚集性发病）"
+  ],
+  "key_positives": [
+    "鼻黏膜水肿伴清水样鼻涕、连续喷嚏",
+    "咽部充血、扁桃体Ⅰ度肿大但表面无脓苔",
+    "体温 37.8℃ 低热，无寒战"
+  ],
+  "key_negatives": [
+    "双肺呼吸音清，未闻及干湿啰音",
+    "颌下及颈前淋巴结未触及肿大"
+  ],
+  "inquiry_points": [
+    "询问起病诱因（受凉、淋雨、接触感冒患者）",
+    "询问鼻涕性状（清水样还是黄脓涕）",
+    "询问咽痛程度与能否正常吞咽进食",
+    "询问发热最高体温、热型与有无寒战",
+    "询问有无咳嗽、咳痰及痰液颜色",
+    "询问全身症状（肌肉酸痛、乏力、食欲变化）",
+    "询问周围人群有无同时发病（鉴别流感聚集性）",
+    "询问既往史、用药史与药物过敏史（开药前必问）"
+  ],
+  "differentials": [
+    {
+      "name": "细菌性扁桃体炎",
+      "why_support": "同样表现为咽痛伴发热、扁桃体肿大",
+      "why_not": "本例为低热 37.8℃，扁桃体表面无脓苔，血常规 WBC 4.9×10⁹/L 正常且淋巴细胞为主，细菌感染证据链不成立"
+    },
+    {
+      "name": "流行性感冒",
+      "why_support": "同样有乏力、肌肉酸痛与上呼吸道症状",
+      "why_not": "流感多为突发高热 ≥39℃、全身酸痛剧烈且常有聚集发病；本例以鼻部症状为主、低热、周围无同发病例"
+    },
+    {
+      "name": "社区获得性肺炎（早期）",
+      "why_support": "同样可有低热与咳嗽等呼吸道症状",
+      "why_not": "本例无咳痰、双肺呼吸音清未闻及湿啰音，血常规不支持细菌感染，无需胸片即可排除"
+    }
+  ],
+  "emotion_scripts": {
+    "E1_CONSULT": {
+      "high": "大夫您好！我这鼻子里跟开了水龙头似的，一大早就流个不停，您给瞧瞧是怎么回事。",
+      "mid": "大夫，我这就是昨天跳舞吹了风，鼻涕止不住，嗓子也痒得难受，您看要紧不？",
+      "low": "哎我说，就一个感冒也排这么久的队，你们这儿到底看不看病啊？"
+    },
+    "E2_PAIN_DETAIL": {
+      "high": "鼻涕是清的，跟水一样，喷嚏一个接一个，打了快二十个了。嗓子痒，咽口水有点疼。",
+      "mid": "就是清鼻涕，打喷嚏打得头都晕。昨儿晚上出了一身汗让风一吹，今早就不行了。",
+      "low": "问这么多干嘛？不就是感冒吗！你给我开点药、挂个水，我好赶紧回去带队排练。"
+    },
+    "E3_PHYSICAL": {
+      "high": "好，您看吧，张嘴——啊——。我自己觉得嗓子有点红，别的地方没啥不舒服。",
+      "mid": "看吧看吧。大夫，我这嗓子是不是发炎了？要不要吃点头孢啊？",
+      "low": "又要张嘴又要听肺，折腾半天了！我下午还有事，能不能快点？"
+    },
+    "E4_WAIT_LAB": {
+      "high": "抽血啊？行，我等着。反正也不着急，您慢慢看，我不催。",
+      "mid": "还得等结果啊……那得多久？我这心里没底，您说我这到底是不是大病？",
+      "low": "查什么血！一个感冒查什么血！我看你们就是想多收钱。"
+    },
+    "E5_RX": {
+      "high": "好，我信您。您说不用抗生素，那我就不吃，回去多喝水多歇着。",
+      "mid": "不开消炎药啊？我邻居说感冒吃头孢好得快……那您这个退烧药怎么吃？",
+      "low": "不给开药？我大老远跑来你就让我回去喝水？这不糊弄人吗！"
+    },
+    "E6_PRE_OUTCOME": {
+      "high": "谢谢大夫，我记住了：病毒感冒自己会好，不乱吃药。后天汇演我照样带队！",
+      "mid": "那我先回去试试……要是三天还不好，我再来找您行吗？",
+      "low": "算了算了，我上药店自己买点药得了，不麻烦你们了。"
+    }
+  },
+  "exam_options": [
+    {
+      "exam_id": "PE_NOSE_THROAT",
+      "name": "鼻咽部视诊（鼻黏膜与扁桃体）",
+      "match_keywords": [
+        "鼻咽部视诊",
+        "扁桃体",
+        "咽部视诊",
+        "视诊"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "鼻黏膜无水肿，咽后壁无充血，双侧扁桃体无肿大，软腭无疱疹。",
+        "abnormal": "鼻黏膜水肿、充满清亮分泌物；咽后壁充血，双侧扁桃体Ⅰ度肿大、表面光滑无脓苔，软腭无疱疹。"
+      },
+      "clinical_point": "30 秒判断有无脓苔，比患者说「嗓子疼得厉害」有价值得多。"
+    },
+    {
+      "exam_id": "PE_GENERAL_TEMP",
+      "name": "一般情况与体温评估",
+      "match_keywords": [
+        "一般情况",
+        "体温",
+        "查体"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": true,
+      "findings": {
+        "normal": "体温 36.8℃，一般情况良好，无皮疹、无结膜充血。",
+        "abnormal": "体温 37.8℃，精神稍疲，面色微红，无皮疹、无结膜充血、无颈抵抗。"
+      },
+      "clinical_point": "低热而非高热，是排除流感与细菌性扁桃体炎的第一个数字。"
+    },
+    {
+      "exam_id": "PE_LUNG_AUSCULTATION",
+      "name": "双肺听诊",
+      "match_keywords": [
+        "双肺听诊",
+        "肺部听诊",
+        "呼吸音",
+        "听诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "双肺呼吸音清，未闻及干湿啰音及胸膜摩擦音。",
+        "abnormal": "双肺呼吸音清，未闻及干湿啰音及胸膜摩擦音。"
+      },
+      "clinical_point": "关键阴性：无湿啰音即可暂不做胸片，省下 300 秒。"
+    },
+    {
+      "exam_id": "PE_NECK_LYMPH",
+      "name": "颈部淋巴结触诊",
+      "match_keywords": [
+        "颈部淋巴结",
+        "淋巴结",
+        "触诊"
+      ],
+      "duration_seconds": 60,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "双侧颌下及颈前淋巴结未触及肿大，无压痛。",
+        "abnormal": "双侧颌下及颈前淋巴结未触及肿大，无压痛。"
+      },
+      "clinical_point": "淋巴结肿大提示细菌感染或传染性单核细胞增多症，阴性则两条都排除。"
+    },
+    {
+      "exam_id": "PE_SKIN_EYE",
+      "name": "全身皮肤与球结膜视诊",
+      "match_keywords": [
+        "皮肤视诊",
+        "球结膜",
+        "视诊"
+      ],
+      "duration_seconds": 30,
+      "required": true,
+      "is_abnormal": false,
+      "findings": {
+        "normal": "全身皮肤无皮疹、无出血点，球结膜无充血，巩膜无黄染。",
+        "abnormal": "全身皮肤无皮疹、无出血点，球结膜无充血，巩膜无黄染。"
+      },
+      "clinical_point": "无皮疹与结膜充血，可把麻疹、腺病毒感染从鉴别表里划掉。"
+    }
+  ],
+  "lab_panels": [
+    {
+      "panel_id": "LAB_CBC",
+      "name": "急诊血常规 (CBC)",
+      "alias": [
+        "血常规",
+        "cbc",
+        "白细胞"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "WBC 4.9×10⁹/L，中性粒细胞 46%，淋巴细胞 44%，Hb 132 g/L，PLT 226×10⁹/L",
+      "ref_range": "WBC 3.5–9.5×10⁹/L，中性粒 40–75%，淋巴 20–50%",
+      "conclusion": "白细胞正常、淋巴细胞为主，符合病毒感染表现，不支持细菌感染。",
+      "clinical_hint": "血常规在本例的作用是「证明不需要抗生素」，不是找病因。"
+    },
+    {
+      "panel_id": "LAB_FLU_AG",
+      "name": "甲乙型流感病毒抗原检测",
+      "alias": [
+        "流感抗原",
+        "流感",
+        "flu"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 600,
+      "is_key": true,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "甲型流感病毒抗原阴性；乙型流感病毒抗原阴性",
+      "ref_range": "阴性",
+      "conclusion": "不支持流感病毒感染，与低热、以鼻部症状为主的临床表现一致。",
+      "clinical_hint": "发病 24 小时内抗原敏感性仅 50–70%，阴性不能完全排除流感。"
+    },
+    {
+      "panel_id": "LAB_CRP",
+      "name": "C 反应蛋白 (CRP)",
+      "alias": [
+        "crp",
+        "c反应蛋白",
+        "反应蛋白"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "CRP 4.2 mg/L",
+      "ref_range": "<10 mg/L",
+      "conclusion": "无炎症指标升高，不支持细菌感染。",
+      "clinical_hint": "CRP 正常 + 白细胞正常，是拒绝抗生素的两条硬证据。"
+    },
+    {
+      "panel_id": "IMG_CHEST_XRAY",
+      "name": "胸部 X 线正位片",
+      "alias": [
+        "胸片",
+        "cxr",
+        "胸部x线"
+      ],
+      "modality": "IMAGING",
+      "tat_seconds": 300,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "双肺纹理清晰，未见实质性浸润影及胸腔积液；心影大小形态正常，双侧肋膈角锐利",
+      "ref_range": "—",
+      "conclusion": "未见肺炎征象。",
+      "clinical_hint": "本例属可省检查：无啰音、无咳痰时胸片阴性率极高。"
+    },
+    {
+      "panel_id": "LAB_STREP_AG",
+      "name": "咽拭子 A 族链球菌快速抗原检测",
+      "alias": [
+        "链球菌抗原",
+        "streptococcus",
+        "咽拭子"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 300,
+      "is_key": false,
+      "is_gold_standard": false,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "A 族链球菌抗原阴性",
+      "ref_range": "阴性",
+      "conclusion": "不支持链球菌性咽炎。",
+      "clinical_hint": "脓苔阴性 + 抗原阴性，细菌性咽炎的证据链彻底闭合。"
+    },
+    {
+      "panel_id": "LAB_RESP_PCR",
+      "name": "鼻咽拭子呼吸道病原体多重核酸检测",
+      "alias": [
+        "呼吸道病原",
+        "核酸",
+        "pcr"
+      ],
+      "modality": "LAB",
+      "tat_seconds": 900,
+      "is_key": false,
+      "is_gold_standard": true,
+      "is_trap": false,
+      "decision_window": "WITHIN_CLOCK",
+      "result_text": "甲型流感、乙型流感、RSV、腺病毒、鼻病毒、SARS-CoV-2 核酸均未检出",
+      "ref_range": "未检出",
+      "conclusion": "未检出常见呼吸道病原核酸，符合自限性病毒性上呼吸道感染的临床诊断。",
+      "clinical_hint": "普通感冒以鼻病毒为主，病原学阴性不改变「对症 + 观察」的处理。"
+    }
+  ],
+  "prescription_rules": [
+    {
+      "rule_id": "RX_PARACETAMOL",
+      "drug_name": "对乙酰氨基酚片",
+      "match_keywords": [
+        "对乙酰氨基酚",
+        "扑热息痛",
+        "paracetamol"
+      ],
+      "verdict": "SUPPORTIVE",
+      "dose": "0.5 g 口服",
+      "route": "口服",
+      "frequency": "发热或明显不适时服用，间隔 ≥6 小时，24 小时不超过 4 次（日总量 ≤2 g）",
+      "target": "体温 <37.3℃",
+      "consequence_text": "退热镇痛，缓解头痛与咽痛不适。",
+      "score_delta": 0.02
+    },
+    {
+      "rule_id": "RX_SALINE_GARGLE",
+      "drug_name": "0.9% 氯化钠溶液（含漱）",
+      "match_keywords": [
+        "氯化钠",
+        "生理盐水",
+        "含漱"
+      ],
+      "verdict": "SUPPORTIVE",
+      "dose": "0.9% 氯化钠溶液 200 mL 含漱，每次 30 秒",
+      "route": "口服",
+      "frequency": "每日 3–4 次",
+      "target": "—",
+      "consequence_text": "机械冲洗咽部、减轻黏膜水肿，无药物相互作用与肝肾负担。",
+      "score_delta": 0.01
+    },
+    {
+      "rule_id": "RX_ANTIBIOTIC_CEF",
+      "drug_name": "头孢呋辛酯片",
+      "match_keywords": [
+        "头孢",
+        "头孢呋辛",
+        "cefuroxime",
+        "抗生素"
+      ],
+      "verdict": "WARN_ONLY",
+      "dose": "0.25 g 口服",
+      "route": "口服",
+      "frequency": "每日 2 次，连用 5 天",
+      "target": "—",
+      "prerequisite": "血常规 WBC >9.5×10⁹/L 或 咽部见脓苔",
+      "consequence_text": "病毒性上呼吸道感染无抗生素指征；本例 WBC 4.9×10⁹/L、扁桃体无脓苔，前提不成立，开具即判定为无指征用药。",
+      "score_delta": -0.08
+    },
+    {
+      "rule_id": "RX_ANTIVIRAL_OSELTAMIVIR",
+      "drug_name": "磷酸奥司他韦胶囊",
+      "match_keywords": [
+        "奥司他韦",
+        "oseltamivir",
+        "抗病毒"
+      ],
+      "verdict": "WARN_ONLY",
+      "dose": "75 mg 口服",
+      "route": "口服",
+      "frequency": "每日 2 次，连用 5 天",
+      "target": "—",
+      "prerequisite": "流感抗原或核酸检测阳性，或明确流感患者接触史",
+      "consequence_text": "流感抗原阴性且无接触史时，奥司他韦既不能缩短病程，还会带来恶心呕吐等不良反应。",
+      "score_delta": -0.05
+    },
+    {
+      "rule_id": "RX_RED_LINE_ANTIPLATELET",
+      "drug_name": "阿司匹林肠溶片",
+      "match_keywords": [
+        "阿司匹林",
+        "aspirin"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "HARMFUL",
+      "dose": "100 mg 口服 每日 1 次（或 300 mg 单次）",
+      "route": "口服",
+      "frequency": "单次即触发",
+      "target": "—",
+      "consequence_text": "本例无任何动脉粥样硬化性心血管病与抗血小板指征，用药只带来消化道出血与过敏风险；若患者合并脱水还会加重肾损伤。",
+      "score_delta": -0.2
+    },
+    {
+      "rule_id": "RX_RED_LINE_ANTICOAG",
+      "drug_name": "肝素钠注射液",
+      "match_keywords": [
+        "肝素",
+        "heparin"
+      ],
+      "verdict": "RED_LINE",
+      "severity": "HARMFUL",
+      "dose": "5000 U 皮下注射",
+      "route": "静脉推注",
+      "frequency": "每 12 小时 1 次",
+      "target": "—",
+      "consequence_text": "自限性上呼吸道感染中无抗凝指征，预防性抗凝收益为零、出血风险不为零；一旦患者日后需急诊手术，抗凝状态会迫使术者推迟开台。",
+      "score_delta": -0.2
+    }
+  ],
+  "outcomes": {
+    "A": {
+      "code": "A",
+      "label": "治愈/稳定",
+      "condition": "!has_red_line && HR < 95 && SpO2 >= 95 && trust >= 0.20",
+      "title": "对症宣教，五天痊愈",
+      "narration": "体温在两天内回到正常，鼻涕从清水样转为黏稠、再慢慢止住。你没有给他开一片抗生素，也没有让他挂一瓶没有指征的输液，只是把「病毒性感冒五到七天自己会好」这件事讲进了他心里。第四天他爱人打电话来，说他又去带队跳舞了。",
+      "patient_line": "大夫，我记住了——感冒是病毒闹的，吃头孢不管用。",
+      "family_line": "（电话里）谢谢您啊大夫，他这两天精神多了！",
+      "review_items": [
+        "正确识别低热 + 清涕 + 无脓苔的病毒性表现",
+        "拒绝无指征抗生素与输液",
+        "完成流感与链球菌的鉴别",
+        "宣教自限病程与复诊指征"
+      ],
+      "next_step": "居家对症治疗，3 天未缓解复诊"
+    },
+    "B": {
+      "code": "B",
+      "label": "延误",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(HR < 95 && SpO2 >= 95 && trust >= 0.20)",
+      "title": "药没开错，话没说透",
+      "narration": "烧退了，人也精神了，可临走时他还在问「那我这嗓子到底要不要吃头孢」。你把该开的药开对了，却没把「为什么不用抗生素」讲清楚。三天后他果然在药店自己买了一盒头孢，吃了五天，什么也没治好，只多了一次耐药风险。",
+      "patient_line": "药是吃了，可我心里还是没底啊大夫。",
+      "family_line": "我们自己又买了点消炎药，也不知道对不对。",
+      "review_items": [
+        "未解释病毒性感冒的自限病程",
+        "未说明抗生素滥用的具体危害",
+        "未给出明确的复诊指征"
+      ],
+      "next_step": "补做用药宣教，签订居家观察计划"
+    },
+    "C": {
+      "code": "C",
+      "label": "离院",
+      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "title": "他拎着药单走了",
+      "narration": "他把化验单往桌上一拍，说一个感冒查血查了这么久，你们这儿就是想多收钱。护士追到门口，只看见他拎着布袋往公交站走。两天后他在社区药店买了三种感冒药一起吃，第三天因为恶心呕吐又来了一趟。",
+      "patient_line": "不用查了，我自己上药店买点药就行。",
+      "family_line": "（护士转述）他走得挺急的，没听劝。",
+      "review_items": [
+        "反复提问同一问题消耗信任",
+        "未解释血常规的目的",
+        "未回应患者对费用的顾虑"
+      ],
+      "next_step": "社区随访，纠正重复用药风险"
+    },
+    "D": {
+      "code": "D",
+      "label": "死亡/不良事件",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "title": "不该出现的那一针",
+      "narration": "为了「预防血栓」，你给他推了一支肝素。他本来只是一个打喷嚏的感冒病人，现在却因为一次不该发生的出血被送进了留观室。抗凝药不是安慰剂，它每一次进入血管，都在向凝血系统借一笔债。",
+      "patient_line": "（皮下大片瘀斑）大夫，我腿上这是怎么了？",
+      "family_line": "他就是个感冒啊！怎么还打出淤血来了？",
+      "review_items": [
+        "点名致命医嘱：无抗凝指征使用肝素",
+        "未核对用药适应证与禁忌证",
+        "开药前未询问出血史与抗凝史"
+      ],
+      "next_step": "停用抗凝、复查凝血并留观"
+    }
+  },
+  "knowledge_card": {
+    "title": "感冒不是消炎药能治好的病",
+    "items": [
+      {
+        "no": 1,
+        "title": "病毒与细菌的分界",
+        "one_liner": "低热、清涕、无脓苔、WBC 正常、淋巴为主，五项凑齐基本就是病毒。",
+        "pitfall": "常见误区：一见咽痛就上抗生素，把「炎症」当成「感染」。"
+      },
+      {
+        "no": 2,
+        "title": "流感的三条硬线",
+        "one_liner": "突发高热 ≥39℃、全身酸痛剧烈、周围聚集发病，三条缺两条不像流感。",
+        "pitfall": "常见误区：把「乏力」当成流感证据，普通感冒也会乏力。"
+      },
+      {
+        "no": 3,
+        "title": "脓苔比咽痛重要",
+        "one_liner": "扁桃体有脓苔才考虑链球菌性咽炎，咽痛的程度本身没有鉴别价值。",
+        "pitfall": "常见误区：凭患者说「嗓子疼得厉害」就判断为细菌感染。"
+      },
+      {
+        "no": 4,
+        "title": "抗生素的时间账",
+        "one_liner": "病毒性感冒用抗生素既缩短不了病程，也多不出一天休息。",
+        "pitfall": "常见误区：以为「吃了抗生素好得快」，其实只是安慰剂效应。"
+      },
+      {
+        "no": 5,
+        "title": "复方感冒药会叠加",
+        "one_liner": "三种复方感冒药同吃，对乙酰氨基酚一次可能超过 4 g 日上限。",
+        "pitfall": "常见误区：认为中成药没有副作用，可以随意叠加服用。"
+      }
+    ]
   }
 }
