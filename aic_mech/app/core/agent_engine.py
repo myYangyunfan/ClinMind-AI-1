@@ -781,7 +781,7 @@ class AgentEngine:
         }
 
         try:
-            with httpx.Client(timeout=9.0) as client:
+            with httpx.Client(timeout=float(getattr(config, "LLM_TIMEOUT_SECONDS", 8.0))) as client:
                 res = client.post(url, headers=headers, json=payload)
                 if res.status_code == 200:
                     data = res.json()

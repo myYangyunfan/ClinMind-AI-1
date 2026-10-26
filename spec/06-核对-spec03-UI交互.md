@@ -198,3 +198,103 @@ cd aic_mech; python -m unittest tests.test_static_assets -v
 5. **响应式（§9.3）建议公开降级**：在 1600×900 固定舞台 + 等比缩放的架构下，1000px 重排不可行且不划算，应在 `spec/03:751` 待裁决里写死最低支持宽度 1280。
 
 **未核验项（诚实标注）**：A17 的「停留 60 s 数值有变化」、A25/A26 的 `transform` 计算值、A24 的导出文件名与 schema —— 三条均依赖运行时/后端结算，本轮只做了代码级推断，未开浏览器逐条断言。
+
+---
+
+## 复审（HEAD 8c245d0）
+
+> 首轮快照基线 `779dabd`，本轮基线 `8c245d0`（2026-10-26）。`scene.js` 891 → **1039 行**，`scene.css` 190 → **261 行**。
+> 判定口径：「现判定」四选一 —— `已修复` / `仍未实现` / `部分修复` / `判定变更（文档该改）`。
+> 约定：首轮即达标、本轮复核仍达标的，也记为 `已修复`，证据列注明「首轮即达标」。
+
+### 复审总表
+
+| 编号 | 原判定 | 现判定 | 证据 |
+|---|---|---|---|
+| A01 | 已实现 | 已修复 | 两页各 3 个 `.scene-emotion-row`（首轮即达标，未变） |
+| A02 | 已实现 | 已修复 | `scene.js` `renderEmotionPanel` 仍写 `fill.style.width` + `value.textContent`（首轮即达标） |
+| A03 | 已实现 | 已修复 | `scene.css:93` `transition:width var(--scene-bar-dur) ease` + `:40` `200ms`（未变） |
+| A04 | 已实现 | 已修复 | `scene.js:192` `scene-trend-shown` 门控 + `scene.css:101-103` 三条规则 |
+| A05 | 文档与实现不一致 | **判定变更（文档该改）** | **未修**：`scene.css:95` 仍 `opacity:.45`，`:101` `.scene-trend-shown{opacity:1}`。箭头隐藏态是「淡显」不是「隐形」——规格写的 `opacity==="0"` 从来不是设计意图，**改规格**为「样本不足时箭头淡显 45% 并显示 →」 |
+| A06 | 文档与实现不一致 | **判定变更（文档该改）** | **未修**：`scene.js:159-161` 仍 `scene-band-low/-high/-critical`，`scene.css:96-100` 仍走 `--scene-critical:#8f2f27`。语义比规格的 `--scene-danger` 更重，属升级，**改规格**接受 `scene-band-critical` |
+| A07 | 部分实现 | 部分修复 | `scene.js:204-212` `applyRefusal()` 仍是 toast + `scene-refuse` + 横幅 + 行态四件套；**第 4 层「记录区 negative 条目」仍缺**——`scene-record-negative` 在 js/css 全域 0 命中，禁忌/失败态只走 `.scene-record-flag`（`scene.css:186`） |
+| A08 | 部分实现 | **判定变更（文档该改）** | 横幅仍是纯文本：`reception.html` `<span class="scene-refusal-banner" role="alert" hidden>拒绝配合 · 先安抚患者</span>`，**无 button 子节点**。规格里「点横幅安抚患者」是凭空设计的路径，真实机制是正常问诊降焦虑，**改规格** |
+| A09 | 未实现 | **已修复** | `scene.js:54` `PHASE_BAND_LIST=['stable','worsen','crisis']`、`:226-240` `renderPhase()`、`:236` 切 `scene-phase-${name}`、`:238` 写 `PHASE_LABELS[band]`。band 名是 **`worsen`** 不是规格写的 `worsening`（见「命名偏差」） |
+| A10 | 部分实现 | 已修复 | 同上 + `:238` 危象档文案；`test_no_death_countdown_text` 通过、`倒计时/剩余秒` 全域 0 命中 |
+| A11 | 未实现 | 部分修复 | `scene.js:262-294` `renderTat()`、`:253-254` 按 `1 - remaining/total` 算宽度、`scene.css:226-236` 规则齐、两页 `<section id="tat-panel" class="scene-tat" hidden>` 都有。**但**：`:255` 剩余时间写成 `` `${Math.ceil(remaining)} 秒` ``，不是规格要的 `"15:00"`；**无 `data-status` 属性**，状态靠 `.scene-tat-ready` 类 |
+| A12 | 未实现 | 已修复 | `:274-278` `status==='ready'` → `paintTat(0,…)` 宽 100%；`:258-259` 标题切「已可查看」；`:260` 加 `scene-tat-ready`。用类不用 `data-status`（同 A11 偏差） |
+| A13 | 未实现 | **仍未实现** | TAT 无「被拒」表达：`renderTat` 对非 `pending/ready` 一律 `hideTat()`（`:280`），`repeating-linear-gradient` 在 `scene.css` 0 命中。拒绝反馈只走情绪面板，**TAT 面板不上报拒绝** |
+| A14 | 已实现 | 已修复 | 两页 `#manual-dialog` 各 1、3 个 `.scene-manual-tab` 带 `aria-selected` |
+| A15 | 已实现 | 已修复 | `setManualTab` 未变；P2 轮实拍通过 |
+| A16 | 已实现 | 已修复 | `scene.js:89` `anyModalOpen()` 仍遍历全部 `<dialog>`；`:996` 快捷键守卫 `anyModalOpen()‖输入框焦点 → return` |
+| A17 | 部分实现 | 部分修复（未实拍） | 说明书三路径仍不触碰定时器；**新增** `stopTatTicker()`（`:241`）只服务 TAT，不在弹窗路径上。60 s 数值变化仍未实拍 |
+| A18 | 已实现 | 已修复 | `ensureDisclaimer()` + `test_disclaimer_storage_key_and_copy` 通过 |
+| A19 | 已实现 | 已修复 | `ackDisclaimer()` 仍写 `sessionStorage['clinmind-disclaimer-ack']='1'` |
+| A20 | 已实现 | 已修复 | 常驻 `.scene-disclaimer*` 两页各 4 处 |
+| A21 | 文档与实现不一致 | **判定变更（文档该改）** | **未修**：`scene.js:490` 仍 `.scene-record-type`，`.scene-record-kind` 0 命中。实现名更准确，**改规格** |
+| A22 | 文档与实现不一致 | **判定变更（文档该改）** | **未修**：`scene.css:186` `.scene-record-flag{…color:var(--scene-danger)}` 红字加粗。规格要的 `border-left` 不存在，但「禁忌无视觉区分」的说法不成立，**改规格** |
+| A23 | 未实现 | **已修复** | `:877` `renderTimeline()`、`:922` 调用；`:867` 输出「第 X 分 YY 秒」；`:886-888` 每条带 `verdict/fatal/invalid`；`:871-872` 致命项单独提到表头「最优先的一条是〈…〉」。排序细节未逐行确认（`items.find` 只用于取头部），但归因与致命优先已落地 |
+| A24 | 部分实现 | 部分修复（未实拍） | `:923` 导出按钮仍在，仍无 `ClinMind-*.json` 文件名与 `clinmind.record.v1` schema 字面量（`schema` 全域 0 命中）。文件名在 Blob 处动态拼，需实拍才能定 |
+| A25 | 已实现（推算） | 已修复（推算，未实拍） | `scene.js:90` `fit()` 未变：`Math.min(innerWidth/1600, innerHeight/900)` → 1920/1080 得 1.2 |
+| A26 | 部分实现 | **判定变更（文档该改）** | `fit()` 0.8 成立；规格里的 `.reception .scene-emotion-side` **选择器从不存在**（`scene-emotion-side` 在 css 0 命中），是规格凭空造的锚点，**改规格**为 `#emotion-panel` |
+| A27 | 未实现 | **判定变更（文档该改）** | 断点仍只有 `700/820/prefers-reduced-motion`（`scene.css:78/114/190/223`），无 1100/1000。**这是设计取舍不是缺口**：1600×900 固定舞台 + 等比缩放，最低支持宽度应写死 1280 |
+| A28 | 已实现 | 已修复 | `test_pages_have_no_inline_style` 通过；两页 `style="` 与 `<style` 均 0 命中 |
+| A29 | 部分实现 | 部分修复 | 新增类名都有规则（`scene-tat-*` css 10 处、`scene-phase-*` css 13 处）；仍缺 `.scene-record-kind` / `.scene-record-negative` / TAT 的 `data-status` 选择器 |
+| A30 | 已实现 | 已修复 | `test_every_static_reference_resolves` 通过，未新增 `/static/` 引用 |
+| §2.1 | 未实现 | **已修复** | 同 A09/A10 |
+| §2.2 | 未实现 | 部分修复 | 同 A11–A13：进度条与 TAT 计时落地，拒绝态与 MM:SS 格式未落地 |
+| §4.3 | 未实现 | **已修复** | 同 A23 |
+| §9.3 | 未实现 | **判定变更（文档该改）** | 同 A27 |
+| §11 | 未实现 | 仍未实现 | 待裁决表仍无对应代码痕迹；需产品侧给结论 |
+
+### 复审统计
+
+| 现判定 | 行数 | 编号 |
+|---|---|---|
+| 已修复 | **19** | A01 A02 A03 A04 A09 A10 A12 A14 A15 A16 A18 A19 A20 A23 A25 A28 A30、§2.1 §4.3 |
+| 部分修复 | **6** | A07 A11 A17 A24 A29、§2.2 |
+| 仍未实现 | **2** | A13、§11 |
+| 判定变更（文档该改） | **8** | A05 A06 A08 A21 A22 A26 A27、§9.3（A27 与 §9.3 同一问题，独立 7 处） |
+| 合计 | **35** | 与表行数一致 |
+
+**一句话：首轮 6 条「未实现」的 A 项里，A09 / A12 / A23 三条真补上了（phase、TAT 完成态、复盘时间线全落地），A11 补了一半，A13 仍空，A27 是规格本身写错。剩下的「缺」只有 2 处真缺口 + 7 处文档该改。**
+
+### 三类需要区分的事
+
+**1. 真缺口（2 条，要改代码）**
+- **A13**：检查被拒时 TAT 面板 `hideTat()` 直接消失，没有任何「被拒」标记。玩家看到的是「面板没了」，而不是「这单被拒了」。建议 `renderTat` 增加 `status==='refused'` 分支，加 `.scene-tat-refused` 类 + 斜纹底。
+- **§11**：待裁决项仍无落地痕迹，需产品给结论才能关闭。
+
+**2. 文档该改（7 处，别去改代码）**
+
+| 编号 | 规格写的 | 实际设计 | 为什么该改文档 |
+|---|---|---|---|
+| A05 | 隐藏态 `opacity:0` | `0.45` 淡显 | 淡显是更好的信息设计（保留位、不跳动）；`0` 会让三行高度有塌陷感 |
+| A06 | `scene-band-danger` / `--scene-danger` | `scene-band-critical` / `--scene-critical` | 危象本就该比危险更深，实现是升级 |
+| A08 | 「点横幅安抚患者」 | 横幅是 `role="alert"` 纯文本 | 设计里根本没有这个按钮，是规格编的交互 |
+| A21 | `.scene-record-kind` | `.scene-record-type` | 同义，无功能差 |
+| A22 | `.scene-record-negative` + `border-left` | `.scene-record-flag` + 红字 | 红色已足够区分，左边框是可选项 |
+| A26 | `.reception .scene-emotion-side` | `#emotion-panel` | 该选择器从未存在，规格凭空造的锚点 |
+| A27 / §9.3 | 1000px 断点横排 | 只有等比缩放 | 架构上不该做重排，见下 |
+
+**3. 设计取舍（1 条，建议写进规格而非记作缺口）**
+- **§9.3 / A27**：断点仍只有 700 / 820 / reduced-motion。在 1600×900 固定舞台 + `fit()` 等比缩放的架构下，1000px 宽会让文字缩到 0.625×，重排要动 `.canvas` 布局、风险远大于收益。**建议在 `spec/03:751` 待裁决里写死「最低支持 1280×720」，并说明窄于此不保证可读性。**
+
+### 本轮新增能力（不在 spec/03 范围内，记录备查）
+
+| 能力 | 证据 | 说明 |
+|---|---|---|
+| 会话结束态恢复 | `scene.js:1005 sessionEnded()`、`:1018` 调用 | 已结束会话下入口仍可用，与首轮实测一致 |
+| 病历抽屉位置修正 | `scene.css:169-171`：`.reception .scene-record-area{left:1178px;top:604px}` | 对应提交 `8c245d0`「接诊室病历抽屉不再压住家属情绪条与患者名牌」；首轮实测的重叠问题已消除 |
+| TAT 三段式渲染 | `scene.js:241-294`：`stopTatTicker / hideTat / paintTat / renderTat` | 字段缺失（`NaN`）时整块隐藏、不猜值（`:250` 注释），保守策略值得保留 |
+
+### 命名偏差清单（不影响功能，供 spec/03 更新时对齐）
+
+| 规格名 | 实现名 | 位置 |
+|---|---|---|
+| `phase: worsening` | `worsen` | `scene.js:54` |
+| `.scene-phase` / `.scene-phase-label` | `.scene-phase-strip` / `.scene-phase-value` | `scene.js:231/237` |
+| `data-status="done"/"refused"` | `.scene-tat-ready` 类 | `scene.js:260` |
+| 剩余时间 `"15:00"` | `` `${n} 秒` `` | `scene.js:255` |
+| `.scene-record-kind` | `.scene-record-type` | `scene.js:490` |
+| `.scene-record-negative` | `.scene-record-flag` | `scene.css:186` |

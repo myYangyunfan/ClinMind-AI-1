@@ -70,7 +70,8 @@ class SessionBackendTests(unittest.TestCase):
         SessionStore.get_instance().tick_all()
         session=SessionStore.get_instance().get_session(self.session_id)
         self.assertEqual(session.virtual_seconds, 0)
-        self.assertEqual(self.action().status_code, 400)
+        # 结案后动作返 410 Gone（D-54：终局状态码分层）。
+        self.assertEqual(self.action().status_code, 410)
         self.assertTrue(self.client.get(f'/api/case/session/{self.session_id}/workspace').json()['assessment'])
 
     def test_new_ui_and_health_are_served(self):

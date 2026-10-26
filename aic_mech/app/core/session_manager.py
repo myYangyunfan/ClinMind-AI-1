@@ -26,6 +26,25 @@ from app.core.case_repository import get_case_repository
 _STORE_LOCK = threading.RLock()
 
 
+# 终局归因的强弱次序。归因错一次，复盘结论就错一次，所以终局只允许
+# 往更强的一端升级：心脏骤停（death）> 情绪离院（leave_*）> 结案评估（finished）。
+TERMINAL_PRIORITY: Dict[str, int] = {
+    "finished": 0,
+    "leave_sustained": 10,
+    "leave_immediate": 20,
+    "death": 30,
+}
+# 未登记的原因按「弱于任何离院」处理：能记下来，但压不过 death / leave_*。
+_TERMINAL_RANK_UNKNOWN = 5
+
+
+def terminal_rank(reason: Optional[str]) -> int:
+    """Return the strength of a terminal reason (``-1`` when there is none)."""
+    if not reason:
+        return -1
+    return TERMINAL_PRIORITY.get(reason, _TERMINAL_RANK_UNKNOWN)
+
+
 class SimulationSession:
     """Encapsulates a single student's clinical training session."""
 
@@ -80,17 +99,47 @@ class SimulationSession:
 
     @property
     def terminal_reason(self) -> Optional[str]:
-        """Effective terminal reason, including an emotion-driven departure."""
-        if self._terminal_reason is not None:
-            return self._terminal_reason
+        """Effective terminal reason: the stronger of the stored reason and the
+        emotion engine's departure.
+
+        取强者而不是「先写者赢」，是因为离院叙事由情绪引擎负责、死亡由生理
+        引擎负责，两者可能在同一拍里各自成立；按强度取最大才不会被写入顺序
+        左右。
+        """
+        candidates = [self._terminal_reason]
         emotion = getattr(self, "emotion", None)
-        if emotion is not None and emotion.leave_reason:
-            return emotion.leave_reason
-        return None
+        leave = getattr(emotion, "leave_reason", None) if emotion is not None else None
+        if leave:
+            candidates.append(leave)
+        best: Optional[str] = None
+        for candidate in candidates:
+            if not candidate:
+                continue
+            if best is None or terminal_rank(candidate) > terminal_rank(best):
+                best = candidate
+        return best
 
     @terminal_reason.setter
     def terminal_reason(self, value: Optional[str]) -> None:
-        self._terminal_reason = value
+        if value is None:
+            self._terminal_reason = None
+        else:
+            self.set_terminal(value)
+
+    def set_terminal(self, reason: Optional[str]) -> bool:
+        """Single funnel for every terminal write.  Returns True when it took effect.
+
+        优先级 death > leave_* > finished：更强的归因可以覆盖更弱的，反过来
+        一律拒绝。这样「离院之后心脏骤停」会改写成 death，而「人已死亡、家属
+        事后签字离院」不会被改写成 leave_immediate。
+        """
+        if not reason:
+            return False
+        current = self.terminal_reason
+        if current is not None and terminal_rank(current) >= terminal_rank(reason):
+            return False
+        self._terminal_reason = reason
+        return True
 
     @property
     def is_finished(self) -> bool:
@@ -102,25 +151,30 @@ class SimulationSession:
         # Legacy callers (e.g. evaluation routes) still assign this flag.
         if not value:
             self._terminal_reason = None
-        elif self._terminal_reason is None:
-            self._terminal_reason = "finished"
+        else:
+            self.set_terminal("finished")
 
     def _refresh_terminal(self) -> None:
-        """Promote physiology / emotion terminals into ``terminal_reason``."""
-        if self.terminal_reason is not None:
-            return
-        state = self.physiology_engine.get_state()
-        if state == PatientStateEnum.S6_CARDIAC_ARREST or getattr(
-                self.physiology_engine, "fatal_death_occurred", False):
-            self._terminal_reason = "death"
+        """Promote physiology / emotion terminals into ``terminal_reason``.
+
+        每次调用都重新判定，绝不因为「已经有终局原因了」就提前返回——早退
+        正是「先离院后骤停，归因永远停在 leave_immediate」的成因。
+        """
+        engine = self.physiology_engine
+        if engine.get_state() == PatientStateEnum.S6_CARDIAC_ARREST or getattr(
+                engine, "fatal_death_occurred", False):
+            self.set_terminal("death")
             return
         if self.emotion.leave_reason:
-            self._terminal_reason = self.emotion.leave_reason
+            self.set_terminal(self.emotion.leave_reason)
 
     def tick(self, dt: float = 1.0) -> VitalsVector:
         """Advance session time by dt seconds (physiology then emotion)."""
         with self._lock:
             if not self.is_active or self.is_finished:
+                # 终局之后不再推进时间，但仍要复查归因：离院后若发生心脏骤停，
+                # terminal_reason 必须改写成 death（死亡优先于离院）。
+                self._refresh_terminal()
                 return self.physiology_engine.get_current_vitals()
 
             self.virtual_seconds += int(dt)
@@ -177,6 +231,8 @@ class SessionStore:
             # load() 造的是新引擎：重新挂镜像回调，并立刻把快照里的情绪值推给 AgentState
             session.emotion.on_state_change = session._mirror_emotion
             session._mirror_emotion()
+            # 旧快照可能把「骤停」记成了离院：装载后再对账一次，只允许向 death 升级。
+            session._refresh_terminal()
             if data.get("assessment"):
                 session.final_assessment = OSCEAssessment.model_validate(data["assessment"])
             self._sessions[session.session_id] = session
@@ -206,6 +262,8 @@ class SessionStore:
         # Hold the session lock so a concurrent API thread appending to
         # action_history/dialogues cannot mutate the lists mid-serialisation.
         with getattr(session, "_lock", _STORE_LOCK):
+            # 落盘前先与生理/情绪对账，避免把「人已死亡却记着家属离院」写进快照。
+            session._refresh_terminal()
             snapshot = self._build_snapshot(session)
             with _STORE_LOCK:
                 with closing(sqlite3.connect(self.db_path)) as db, db:

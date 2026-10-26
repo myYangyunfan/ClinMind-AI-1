@@ -397,6 +397,20 @@ class TestStaticAssetsConsistency(unittest.TestCase):
         ):
             self.assertIn(f".{cls}", css, f"scene.css 缺少 .{cls} 规则")
 
+    def test_tat_refused_state_visible(self):
+        """被拒不是「面板消失」：要有斜纹拒绝态、明确文案、data-status 与 mm:ss 读数。"""
+        css = _slurp(SCENE_CSS)
+        code = _slurp(SCENE_JS)
+        self.assertIn("function renderTat(", code)
+        for token in ("refused", "paintTatRefused", "患者拒绝配合", "已拒绝", "dataset.status"):
+            self.assertIn(token, code, f"scene.js 缺少拒绝态实现: {token}")
+        self.assertIn("formatTatLeft", code, "scene.js 缺少 mm:ss 格式化")
+        self.assertIn("padStart(2, '0')}", code, "剩余时间未按 mm:ss 输出")
+        self.assertIn("repeating-linear-gradient", css, "scene.css 缺少拒绝态斜纹")
+        self.assertIn(".scene-tat-refused", css, "scene.css 缺少 .scene-tat-refused 规则")
+        self.assertIn("var(--scene-", css[css.index(".scene-tat-refused"):css.index(".scene-tat-refused") + 220],
+                      "拒绝态斜纹必须消费 --scene-* 变量")
+
     def test_phase_bands_consume_phase_tokens(self):
         """病程三档：映射常量一处维护，三条 --scene-phase-* 变量必须真的被消费。"""
         css = _slurp(SCENE_CSS)

@@ -198,5 +198,116 @@ class ApiEmotionChannelTests(unittest.TestCase):
         self.assertAlmostEqual(data["patient_anxiety"], 0.85, places=2)
 
 
+class TerminalStatusCodeTests(unittest.TestCase):
+    """T13/T14：终局状态码要能区分交卷/离院（410）与死亡（409）。"""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path_patch = patch.object(config, "RUNTIME_DIR", Path(self.temp.name))
+        self.path_patch.start()
+        self.old_store = SessionStore._instance
+        SessionStore._instance = None
+        self.client = TestClient(app)
+        self.session_id = self.client.post("/api/case/start", json={}).json()["session_id"]
+        self.store = SessionStore.get_instance()
+
+    def tearDown(self):
+        SessionStore._instance = self.old_store
+        self.path_patch.stop()
+        self.temp.cleanup()
+
+    def action(self, content="再补做一次体格检查", action_type="physical_exam", **extra):
+        return self.client.post(
+            "/api/action/execute",
+            json={"session_id": self.session_id, "action_type": action_type, "content": content, **extra},
+        )
+
+    def test_finished_session_returns_410(self):
+        resp = self.client.post(
+            "/api/eval/submit",
+            json={"session_id": self.session_id, "final_diagnosis": "主动脉夹层"},
+        )
+        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(self.store.get_session(self.session_id).terminal_reason, "finished")
+
+        blocked = self.action()
+        self.assertEqual(blocked.status_code, 410, blocked.text)
+        self.assertIn("已结束", blocked.json()["detail"])
+
+    def test_death_terminal_returns_409(self):
+        # 夹层病例输注阿司匹林：红线致死，随后靠时钟推进到 S6 死亡终局。
+        lethal = self.action("阿司匹林肠溶片 300mg", "medication", params={"dose": 300, "unit": "mg"})
+        self.assertEqual(lethal.status_code, 200, lethal.text)
+        self.assertTrue(lethal.json()["is_contraindicated"])
+
+        session = self.store.get_session(self.session_id)
+        for _ in range(600):
+            if session.is_finished:
+                break
+            self.store.tick_all()
+        self.assertTrue(session.is_finished)
+        self.assertEqual(session.terminal_reason, "death")
+
+        blocked = self.action()
+        self.assertEqual(blocked.status_code, 409, blocked.text)
+        self.assertIn("死亡", blocked.json()["detail"])
+
+    def test_unknown_terminal_reason_falls_back_to_400(self):
+        session = self.store.get_session(self.session_id)
+        # 未知终局不许猜：既不是死亡也不是正常结案时仍走 400 兜底。
+        session.terminal_reason = "mystery_end"
+        self.assertTrue(session.is_finished)
+
+        blocked = self.action()
+        self.assertEqual(blocked.status_code, 400, blocked.text)
+        self.assertIn("已结案", blocked.json()["detail"])
+
+
+class LegacyObserveActionRetiredTests(unittest.TestCase):
+    """K-05：observe_action 的 legacy 直写拆掉后，agent 账必须与 engine 一致。"""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path_patch = patch.object(config, "RUNTIME_DIR", Path(self.temp.name))
+        self.path_patch.start()
+        self.old_store = SessionStore._instance
+        SessionStore._instance = None
+        self.client = TestClient(app)
+        self.session_id = self.client.post("/api/case/start", json={}).json()["session_id"]
+        self.store = SessionStore.get_instance()
+
+    def tearDown(self):
+        SessionStore._instance = self.old_store
+        self.path_patch.stop()
+        self.temp.cleanup()
+
+    def test_agent_matches_engine_after_repeated_treatments(self):
+        session = self.store.get_session(self.session_id)
+        for index in range(4):
+            resp = self.client.post(
+                "/api/action/execute",
+                json={
+                    "session_id": self.session_id,
+                    "action_type": "medication",
+                    "content": "艾司洛尔 0.5mg/kg 静脉推注",
+                    "params": {"dose": 0.5, "unit": "mg/kg"},
+                },
+            )
+            self.assertEqual(resp.status_code, 200, resp.text)
+            # 第 4 次 CORRECT_TREATMENT 会被 max_times=3 压掉（delta=0），
+            # 正是 legacy 直写会把 agent 账抬高的那个窗口。
+            for _ in range(3):
+                self.store.tick_all()
+            engine_trust = session.emotion.snapshot()["patient_trust"]
+            self.assertAlmostEqual(
+                session.agent_engine.state.patient_trust, engine_trust, places=6,
+                msg=f"第 {index + 1} 次处置后 agent 账偏离 engine",
+            )
+            self.assertAlmostEqual(
+                session.agent_engine.state.family_anxiety,
+                session.emotion.snapshot()["family_anxiety"], places=6,
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

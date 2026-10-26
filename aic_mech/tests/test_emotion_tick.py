@@ -700,5 +700,138 @@ class LlmDialoguePathTests(unittest.TestCase):
         self.assertIn("警觉拦截", self.engine.generate_nurse_warning("阿司匹林").text)
 
 
+class TerminalPriorityTests(unittest.TestCase):
+    """T16：死亡优先于离院——终局归因只允许向更强的一端升级。
+
+    归因错一次，复盘结论就错一次：人已心脏骤停却写着「家属签字离院」，
+    是医学常识级的错误，所以两个方向都要钉住。
+    """
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path_patch = patch.object(config, "RUNTIME_DIR", Path(self.temp.name))
+        self.path_patch.start()
+        self.old_store = SessionStore._instance
+        SessionStore._instance = None
+        self.store = SessionStore()
+        self.session = self.store.create_session(CASE_ID, "测试学员")
+
+    def tearDown(self):
+        SessionStore._instance = self.old_store
+        self.path_patch.stop()
+        self.temp.cleanup()
+
+    @staticmethod
+    def _drive_leave(session):
+        """把情绪引擎推到「立刻离院」：12 次无关提问，信任跌破 0.15。"""
+        for _ in range(12):
+            session.emotion.apply_event("IRRELEVANT_QUESTION")
+        assert session.emotion.leave_reason == "leave_immediate"
+
+    def test_departure_then_arrest_reports_death(self):
+        """先离院、后骤停：terminal_reason 必须改写为 death。"""
+        self._drive_leave(self.session)
+        self.assertEqual(self.session.terminal_reason, "leave_immediate")
+
+        self.session.physiology_engine.state = PatientStateEnum.S6_CARDIAC_ARREST
+        self.session.tick()
+
+        self.assertEqual(self.session.terminal_reason, "death")
+        self.assertTrue(self.session.is_finished)
+
+    def test_arrest_then_departure_keeps_death(self):
+        """先骤停、后离院：leave_* 不允许覆盖 death。"""
+        self.session.physiology_engine.state = PatientStateEnum.S6_CARDIAC_ARREST
+        self.session.tick()
+        self.assertEqual(self.session.terminal_reason, "death")
+
+        self._drive_leave(self.session)
+        self.session.tick()
+
+        self.assertEqual(self.session.terminal_reason, "death")
+        self.assertFalse(self.session.set_terminal("leave_immediate"))
+        self.assertEqual(self.session.terminal_reason, "death")
+
+    def test_set_terminal_is_monotonic(self):
+        """death > leave_* > finished：改强生效，改弱被拒。"""
+        from app.core.session_manager import terminal_rank
+
+        self.assertEqual(terminal_rank(None), -1)
+        self.assertLess(terminal_rank("finished"), terminal_rank("leave_sustained"))
+        self.assertLess(terminal_rank("leave_sustained"), terminal_rank("leave_immediate"))
+        self.assertLess(terminal_rank("leave_immediate"), terminal_rank("death"))
+
+        self.assertTrue(self.session.set_terminal("finished"))
+        self.assertFalse(self.session.set_terminal("finished"))
+        self.assertTrue(self.session.set_terminal("leave_sustained"))
+        self.assertFalse(self.session.set_terminal("finished"))
+        self.assertTrue(self.session.set_terminal("death"))
+        self.assertFalse(self.session.set_terminal("leave_immediate"))
+        self.assertFalse(self.session.set_terminal("finished"))
+        self.assertEqual(self.session.terminal_reason, "death")
+
+    def test_set_terminal_rejects_empty_reason(self):
+        """空原因不是终局：None / 空串一律不生效，不会把会话误判为已结束。"""
+        self.assertFalse(self.session.set_terminal(None))
+        self.assertFalse(self.session.set_terminal(""))
+        self.assertIsNone(self.session.terminal_reason)
+        self.assertFalse(self.session.is_finished)
+
+    def test_reopening_clears_terminal_reason(self):
+        """is_finished = False（重开）必须真的清空归因，而不是只改标志位。"""
+        self.session.is_finished = True
+        self.assertEqual(self.session.terminal_reason, "finished")
+
+        self.session.is_finished = False
+
+        self.assertIsNone(self.session.terminal_reason)
+        self.assertFalse(self.session.is_finished)
+
+    def test_legacy_snapshot_finished_flag_restores_finished(self):
+        """只有 is_finished 旧标志、没有 terminal_reason 的快照回填成 finished。"""
+        legacy = {
+            "session_id": "sess_legacy02",
+            "case_id": CASE_ID,
+            "student_name": "老数据",
+            "start_time": 1.0,
+            "virtual_seconds": 42,
+            "is_active": False,
+            "is_finished": True,
+            "actions": [],
+            "dialogues": [],
+            "agent_state": AgentState().model_dump(),
+            "physiology": {},
+            "assessment": None,
+        }
+        with closing(sqlite3.connect(self.store.db_path)) as db, db:
+            db.execute("INSERT OR REPLACE INTO sessions VALUES (?, ?, ?)",
+                       ("sess_legacy02", 1.0, json.dumps(legacy, ensure_ascii=False)))
+
+        SessionStore._instance = None
+        restored = SessionStore().get_session("sess_legacy02")
+        self.assertIsNotNone(restored)
+        self.assertEqual(restored.terminal_reason, "finished")
+        self.assertTrue(restored.is_finished)
+
+    def test_death_after_departure_survives_reload(self):
+        """death 压过离院后必须落进快照，重载仍是 death。"""
+        self._drive_leave(self.session)
+        self.session.physiology_engine.state = PatientStateEnum.S6_CARDIAC_ARREST
+        self.store.persist(self.session)
+
+        SessionStore._instance = SessionStore()
+        restored = SessionStore._instance.get_session(self.session.session_id)
+        self.assertIsNotNone(restored)
+        self.assertEqual(restored.terminal_reason, "death")
+        # 情绪引擎自己的离院叙事不被抹掉，只是不再当终局归因。
+        self.assertEqual(restored.emotion.leave_reason, "leave_immediate")
+
+    def test_evaluation_finish_never_downgrades_departure(self):
+        """routes_eval 结案（is_finished = True）不得把离院改写成 finished。"""
+        self._drive_leave(self.session)
+        self.session.is_finished = True
+        self.assertEqual(self.session.terminal_reason, "leave_immediate")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

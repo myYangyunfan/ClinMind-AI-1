@@ -166,6 +166,33 @@ def _allergy_prompt_emitted(session) -> bool:
     return False
 
 
+# ============ 家属称谓（人设参数化）============
+# 病例 JSON 的 patient_profile.family_companion 形如
+# 「妻子（李秀梅，50岁，极度焦虑紧张）」，这里只取关系词 + 姓名；
+# 病例没写陪同者时回落到原文案，不让通用分支凭空造人。
+_FAMILY_FALLBACK_LABEL = "家属李秀梅"
+_FAMILY_ABSENT_PREFIXES = ("无", "独自", "无陪护")
+
+
+def _family_label(session) -> str:
+    """按病例陪同者取「关系+姓名」，取不到时回落原文案。"""
+    case_data = getattr(session, "case_data", None) or {}
+    profile = case_data.get("patient_profile") or {}
+    companion = str(profile.get("family_companion") or "").strip()
+    if not companion or companion.startswith(_FAMILY_ABSENT_PREFIXES):
+        return _FAMILY_FALLBACK_LABEL
+    head = companion.split("（")[0].split("(")[0].strip()
+    inner = ""
+    for opener, closer in (("（", "）"), ("(", ")")):
+        if opener in companion and closer in companion:
+            inner = companion.split(opener, 1)[1].split(closer, 1)[0]
+            break
+    name = inner.split("，")[0].split(",")[0].strip() if inner else ""
+    if head and name:
+        return f"{head}{name}"
+    return head or _FAMILY_FALLBACK_LABEL
+
+
 def _apply_emotion(session, code: str, ctx: Dict[str, Any]) -> bool:
     """调 EmotionEngine 落一次情绪事件，返回是否真的落账。
 
@@ -217,6 +244,37 @@ def _guard_llm_dialogues(dialogues: List[DialogueMessage]) -> List[str]:
 # 看得见的护栏反馈与报警，不重复实现匹配，避免两套数值互相叠加。
 
 
+# ============ 终局状态码（T13/T14）============
+# 结案、离院、死亡以前统一 400，前端无法区分「交卷」和「患者死了」。
+# 410 Gone = 会话正常结束（交卷 / 患者离院，资源永久不可再操作）；
+# 409 Conflict = 死亡终局（再做任何动作都与患者状态冲突）；
+# 未知终局仍走 400 兜底，不猜。
+_TERMINAL_DEATH_MARKERS = ("death", "arrest", "fatal")
+_TERMINAL_GONE_MARKERS = ("finished", "leave", "submit", "ended")
+
+_TERMINAL_MESSAGES = {
+    409: "患者已进入死亡终局，无法继续任何诊疗处置。",
+    410: "本次实训会话已结束，无法继续下达医嘱。",
+    400: "本次实训会话已结案，无法继续下达医嘱。",
+}
+
+
+def terminal_status_code(session) -> int:
+    """把 ``terminal_reason`` 映射成 HTTP 状态码（409 / 410 / 400 兜底）。"""
+    reason = getattr(session, "terminal_reason", None)
+    text = str(reason or "").strip().lower()
+    if any(marker in text for marker in _TERMINAL_DEATH_MARKERS):
+        return 409
+    if any(marker in text for marker in _TERMINAL_GONE_MARKERS):
+        return 410
+    return 400
+
+
+def _terminal_error(session) -> HTTPException:
+    code = terminal_status_code(session)
+    return HTTPException(status_code=code, detail=_TERMINAL_MESSAGES[code])
+
+
 @router.post("/execute", response_model=ActionResponse)
 def execute_action(req: ActionRequest):
     """Execute a student clinical decision action."""
@@ -226,7 +284,7 @@ def execute_action(req: ActionRequest):
         raise HTTPException(status_code=404, detail="Active session not found")
 
     if session.is_finished:
-        raise HTTPException(status_code=400, detail="本次实训会话已结案，无法继续下达医嘱。")
+        raise _terminal_error(session)
 
     action_id = f"act_{uuid.uuid4().hex[:8]}"
     content = req.content.strip()
@@ -510,7 +568,12 @@ def execute_action(req: ActionRequest):
             dialogues.append(nurse_msg)
 
         elif any(k in c_lower for k in ["知情同意", "病危", "沟通", "交代", "签字"]):
-            feedback_message = "【知情同意交代】已向家属详尽交待急性主动脉夹层极高破裂风险，家属李秀梅已含泪签署急诊开胸手术知情同意书及病危通知书。"
+            family_label = _family_label(session)
+            feedback_message = (
+                "【知情同意交代】已向"
+                f"{family_label}详尽交待急性主动脉夹层极高破裂风险，"
+                f"{family_label}已含泪签署急诊开胸手术知情同意书及病危通知书。"
+            )
             consent_dialogues = session.agent_engine.handle_inquiry("签署知情同意与病危通知", current_state)
             _guard_llm_dialogues(consent_dialogues)
             dialogues.extend(consent_dialogues)
@@ -534,7 +597,12 @@ def execute_action(req: ActionRequest):
     vitals = session.physiology_engine.get_current_vitals()
     new_state = session.physiology_engine.get_state()
 
-    session.agent_engine.observe_action(action_type, content, safe=not is_contraindicated)
+    # K-05：EmotionEngine 是情绪唯一真值，SessionState 通过 ``_mirror_emotion`` 把三真值
+    # 镜像进 AgentState。这里的 legacy 直写只在「事件被冷却/次数上限压掉」时才生效，
+    # 会把 agent 账抬到 engine 之上（实测第 4 次 CORRECT_TREATMENT 被 max_times=3 压掉后
+    # agent=0.58 / engine=0.52）。没有情绪引擎的旧会话才保留这条兜底路径。
+    if getattr(session, "emotion", None) is None:
+        session.agent_engine.observe_action(action_type, content, safe=not is_contraindicated)
 
     # 情绪事件统一落账（契约 05 §4）：动作已执行完，生理/护理副作用都已生效。
     # 注意 emotion_applied 只是"判定是否可信"的标志，不能短路掉 apply_event：

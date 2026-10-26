@@ -245,19 +245,40 @@
   function hideTat() {
     stopTatTicker();
     const panel = $('.scene-tat');
-    if (panel) { panel.hidden = true; panel.classList.remove('scene-tat-ready'); }
+    if (panel) { panel.hidden = true; panel.classList.remove('scene-tat-ready', 'scene-tat-refused'); delete panel.dataset.status; }
+  }
+  // 剩余时间统一 mm:ss，避免「90 秒」这种不好读的写法。
+  function formatTatLeft(remaining) {
+    const sec = Math.max(0, Math.ceil(Number(remaining) || 0));
+    return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
   }
   // 只按 pending/ready + 剩余秒数推进；字段缺失（NaN）时整块隐藏，不做猜测。
   function paintTat(remaining, total, itemName) {
     const panel = $('.scene-tat'); if (!panel) return;
     const done = total > 0 ? Math.min(1, Math.max(0, 1 - remaining / total)) : 0;
     const fill = $('.scene-tat-fill', panel); if (fill) fill.style.width = `${(done * 100).toFixed(1)}%`;
-    const left = $('.scene-tat-remaining', panel); if (left) left.textContent = `${Math.max(0, Math.ceil(remaining))} 秒`;
+    const left = $('.scene-tat-remaining', panel); if (left) left.textContent = formatTatLeft(remaining);
     const item = $('.scene-tat-item', panel); if (item && itemName) item.textContent = itemName;
     const ready = remaining <= 0;
     const title = $('.scene-tat-title', panel);
     if (title) title.textContent = ready ? '已可查看' : '检查进行中';
     panel.classList.toggle('scene-tat-ready', ready);
+    panel.classList.remove('scene-tat-refused');
+    panel.dataset.status = ready ? 'ready' : 'pending';
+  }
+  // 被拒不是「面板消失」：留下斜纹卡片 + 明确文案，保留到下一次动作再收场。
+  function paintTatRefused(data) {
+    const panel = $('.scene-tat'); if (!panel) return;
+    stopTatTicker();
+    const itemName = String(data.content || data.report?.title || data.report?.name || '检查项目').slice(0, 80);
+    panel.hidden = false;
+    panel.classList.remove('scene-tat-ready');
+    panel.classList.add('scene-tat-refused');
+    panel.dataset.status = 'refused';
+    const title = $('.scene-tat-title', panel); if (title) title.textContent = '患者拒绝配合';
+    const item = $('.scene-tat-item', panel); if (item) item.textContent = itemName;
+    const left = $('.scene-tat-remaining', panel); if (left) left.textContent = '已拒绝';
+    const fill = $('.scene-tat-fill', panel); if (fill) fill.style.width = '100%';
   }
   function renderTat(data) {
     const panel = $('.scene-tat'); if (!panel) return;
@@ -271,6 +292,10 @@
       remaining = Number.isFinite(availableAt) && Number.isFinite(virtualNow) ? availableAt - virtualNow : NaN;
     }
     const span = Number.isFinite(total) && total > 0 ? total : remaining;
+    if (data.refused === true || status === 'refused' || status === 'rejected') {
+      paintTatRefused(data);
+      return;
+    }
     if (status === 'ready') {
       stopTatTicker();
       paintTat(0, Number.isFinite(span) && span > 0 ? span : 1, data.content);

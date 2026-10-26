@@ -418,3 +418,57 @@
 | D3 | §6.1 请求示例用 `payload`，实际字段是 `content`+`params` | 改示例 |
 | D4 | §5.2 的 4 个字段名与引擎内部名不同（`critical_anxiety_hold_s` 等） | 二选一：快照投影 4 键，或改文档名并注明"存于 `emotion` 子对象" |
 | D5 | §2.4 验法依赖 `/api/health` 无法连接，但 health 不依赖病例库 | 改为"进程非零退出"或 `/api/case/list` 500 |
+
+---
+
+## 复审（HEAD 8c245d0）
+
+> 基线：`8c245d0`（fix(ui): 接诊室病历抽屉不再压住家属情绪条与患者名牌）。逐条重跑，只记录与本文件原判定有差异或需要复述现状的行。
+> 证据形式＝`文件:行` 或实测响应/日志；未标注"实测"的行均为代码逐行复核。
+
+### 统计
+
+| 已修复 | 部分修复 | 仍未实现 | 判定变更（文档该改） | 合计 |
+|---|---|---|---|---|
+| 4 | 9 | 12 | 5 | 30 |
+
+### 明细
+
+| 编号 | 原判定 | 现判定 | 证据（文件:行 / 实测响应） |
+|---|---|---|---|
+| 2.1-a `validate_case` | 未实现 | 部分修复 | `case_repository.py:36-48` `missing_case_fields()` 按 24 键逐项比对；实测严格档抛 `case_broken.json 缺少字段：emotion_scripts, exam_options`。仍无 `case_schema.py`、无 `validate_case` 这个函数名——功能在，契约点名的入口不在 |
+| 2.1-b 启动时校验 | 未实现 | 仍未实现 | `server.py:24-45` `lifespan` 内无病例库调用；`case_repository.py:146-148` `get_case_repository()` 每请求新建，首次 `/api/case/list` 才加载 |
+| 2.1-c 阻断启动 | 部分实现 | 部分修复 | 严格档 `case_repository.py:76-77` `raise CaseValidationError(...) from exc`；但 `config.py:195 CASE_VALIDATION_STRICT=False`，且全仓仅 2 处引用该键，启动脚本未注入环境变量 |
+| 2.1-d 错误格式（路径+期望+实际） | 未实现 | 部分修复 | 实测 `[CaseRepository] 病例文件被拒绝：… CaseValidationError: case_broken.json 缺少字段：emotion_scripts`——**点名了缺失字段**，但没有「期望类型／实际值」两段 |
+| 2.1-e 验收第 10 条 | 部分实现 | 部分修复 | 默认档 `case_repository.py:78-82` 同时 `self._warnings.append(message)` + `print`，字段名随消息带出；**仍不阻断启动**，验收原文的"启动即报错"只在 `CASE_VALIDATION_STRICT=1` 时成立 |
+| CM-101…CM-502（37 码） | 未实现（37） | 判定变更（文档该改） | 代码 grep `CM-\d{3}` = **0 处**；`需求规格说明-v2.md:487` D-50 已定「过度设计，降级为后续」。不再计为缺口，规格应把这 37 行标为"设计稿，未实现" |
+| 3.1-1 `LLM_TIMEOUT_SECONDS=8.0` | 未实现 | 部分修复 | `config.py:222` 已有常量；单患者路径 `agent_engine.py:903 timeout=8.0` 已接；**多角色路径 `:784 timeout=9.0` 仍写死** |
+| 3.1-2 连接超时 3.0 | 未实现 | 仍未实现 | `config.py` 的 `LLM_*` 仅 222-224（TIMEOUT/GUARD_MAX_CHARS/GUARD_BLOCK_DIAGNOSIS），无 connect 超时键 |
+| 3.1-3/4/5 重试/最大 token/温度 | 未实现 | 仍未实现 | 同上，三键均缺；httpx 默认不重试，行为等效但不可配置 |
+| 3.2-3 GED 禁直连 httpx | 未实现 | 仍未实现 | `ged_evaluator.py:352 import httpx`、`:427 httpx.Client(timeout=10.0)`，与"唯一入口"仍冲突 |
+| 3.3-③ `llm_degraded` | 部分实现 | 仍未实现 | 全仓 grep `llm_degraded`/`llm_mode` = 0 处 |
+| 3.5-A1 长度 | 未实现 | 部分修复 | 实测 400 字 → `llm_rejected reason=A1 source=probe.A1 len=400>220`；但 2 字短句 `accepted=True`——**下限 40 未守**：`llm_guard.py:65 min_chars()` 定义后全文件无调用，`:127-130` 只判上限 |
+| 3.5-A2 诊断名+剂量 | 未实现 | 已修复 | 实测「考虑主动脉夹层，先给阿司匹林 300mg」→ `accepted=False reason=A2`，日志 `llm_rejected reason=A2 source=probe forbidden_term`；纯剂量句「硝酸甘油 0.5mg」同样被拦；A3 结构内也会逐字段扫（`field=patient`） |
+| 3.5-A3 结构化 | 未实现 | 已修复 | 实测 `guard_structured("hello world")` → `({'patient':'P','family':'F'}, 'A3')` + `llm_rejected reason=A3 … invalid_json`；合法 `{patient,family}` 原样通过。口径偏宽：`family` 缺失补 `""` 而非拒绝（`llm_guard.py:166-169`），文档该写明 |
+| 3.6 三道闸接线 | 未实现 | 已修复 | `agent_engine.py:16` 导入；`:796 guard_structured`（多角色）、`:911 guard_text`（单患者）；`llm_guard.py:192-219 guard_dialogues` 只拦 patient/family，医生/护士模板不过闸（有意） |
+| 3.7-1 `/api/health` 明细 | 未实现 | 仍未实现 | `server.py:80` 仍 `{status,version,mode,storage}` 4 键，无 `llm_provider/model/last_error` |
+| 3.7-2 WS `llm_mode` | 未实现 | 仍未实现 | `websocket_feed.py:76-96` 无该键 |
+| 3.4-G10 说明书后端裁剪 | 未实现 | 判定变更（文档该改） | 端点仍为 0，说明书仍前端硬编码；D-50 已降级 |
+| §4 O-4/O-5/O-6 | 未实现 | 判定变更（文档该改） | 9 个新端点仍未建（路由实测 13 条），离线断言随 D-50 降级；O-1/O-2/O-3 仍成立 |
+| §5 五个"换名"字段 | 文档与实现不一致 | 判定变更（文档该改） | `EmotionEngine.dump()` 实测 **15 键**：`accumulator, agitated, clinical_state, cooldowns, critical_anxiety_hold_s, departure_watch_s, event_counts, history, leave_reason, neg_interaction_streak, refused, settle_count, state, version, virtual_seconds`。映射：`emotion_log→history`、`anxiety_cap_seconds→critical_anxiety_hold_s`、`negative_streak→neg_interaction_streak`、`trust_low_seconds→departure_watch_s`、`leave_reason→leave_reason`（在 `emotion` 子对象内，非顶层）。文档该按实际键名改写 |
+| §6 #12 动作响应新字段 | 部分实现 | 已修复 | 实测 `PHYSICAL_EXAM → status=executed, elapsed_seconds=60.0`；`LAB_ORDER → status=pending, available_at_seconds=1260.0, remaining_seconds=1200.0`；`SKIP_ALLERGY` 实测 trust `0.40→0.30`、message 含「【过敏史缺项】未确认过敏史即用药」 |
+| §6 结案守卫 | 未实现 | 部分修复 | `routes_action.py:228-229` 已加守卫，但返回 **400** 中文文案；契约要 409 + `SESSION_FINISHED` |
+| §6 九个新端点 | 未实现（9） | 判定变更（文档该改） | 路由仍 13 条：`/`、`/api/health`、`/detail/{case_id}`、`/execute`、`/golden_dag`、`/list`、`/llm`×2、`/report/{session_id}`、`/session/{session_id}/pause`、`/session/{session_id}/workspace`、`/session/status`、`/start`、`/submit`、`/ws/vitals/{session_id}`；D-50 降级 |
+| §6 统一错误体 | 未实现 | 仍未实现 | 仍 `HTTPException(detail="...")`：`routes_action.py:226` `404 "Active session not found"` |
+| §7 迁移脚本 | 未实现 | 仍未实现 | 无 `tools/` 目录；全仓 `*migrat*` 0 命中 |
+| C-01 坏病例静默跳过 | 部分实现 | 部分修复 | 同 2.1-c：默认档留 `warnings` 痕迹，不再完全静默，但仍不阻断 |
+| C-11 急救硬编码家属名 | 未实现 | 仍未实现 | `routes_action.py:513` 仍写死「家属李秀梅已含泪签署…」 |
+| C-13 WS 缺字段 | 部分实现 | 部分修复 | `websocket_feed.py:76-96` 已有 6 情绪字段；仍缺 `llm_mode`、`refused_exams` |
+| C-14 WS 手写 dict | 未实现 | 仍未实现 | 仍手写 payload，`VitalsStreamPayload` 未实例化 |
+| C-16 连通测试 20 s | 文档与实现不一致 | 仍未实现 | `routes_config.py:143` 仍 `httpx.Timeout(20.0, connect=5.0)`，未在文档标注例外 |
+
+### 详述：三条只在"严格档"下成立的事
+
+1. **验收第 10 条的"启动即报错"**：`CASE_VALIDATION_STRICT` 默认 `False`（`config.py:195`），且没有启动脚本或 `.env` 注入它。要满足验收原文，得把默认值改 True 并在 `lifespan` 里主动 `get_case_repository().warnings` 断言为空——目前两件都没做。
+2. **错误格式**：现在能点名缺失字段（比原判定"未实现"强），但没有类型/实际值。若要严格对齐 §2.1-d，`missing_case_fields` 得返回 `(path, expected, actual)` 三元组。
+3. **A1 下限**：`min_chars()` 写了却没调用，且 `LLM_GUARD_MAX_CHARS=220` 与文档的 300 不一致。二者取一：代码加下限校验并把上限调 300，或文档改「上限 220、不设下限（短句合法）」。按现有注释（"临床对话里合法的短句不该被长度下限判死"）看，**改文档更符合设计意图**。

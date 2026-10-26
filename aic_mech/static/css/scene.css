@@ -236,6 +236,12 @@ html,body{background:#c6d0bd}body{display:flex;align-items:center;justify-conten
 .scene-tat-ready{border-left-color:var(--scene-safe);opacity:.6}
 .scene-tat-ready .scene-tat-remaining{color:var(--scene-safe)}
 .scene-tat-ready .scene-tat-fill{background:var(--scene-safe)}
+.scene-tat-refused{border-left-color:var(--scene-danger);background:repeating-linear-gradient(135deg,var(--scene-refusal-bg) 0 7px,var(--scene-panel-bg) 7px 14px)}
+.scene-tat-refused .scene-tat-title{color:var(--scene-danger)}
+.scene-tat-refused .scene-tat-remaining{color:var(--scene-danger)}
+.scene-tat-refused .scene-tat-fill{background:var(--scene-danger)}
+.scene-tat-refused .scene-tat-track{opacity:.55}
+.scene-tat-refused[data-status="refused"]{transition:opacity .35s ease}
 
 /* ===== 病程三档色标：稳定 / 恶化 / 危象 ===== */
 .scene-phase-strip{display:inline-flex;align-items:center;gap:5px;margin:0;padding:1px 7px;border:1px solid var(--scene-panel-border);border-radius:99px;background:var(--scene-track);white-space:nowrap}
