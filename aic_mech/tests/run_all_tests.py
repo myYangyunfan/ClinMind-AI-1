@@ -138,6 +138,7 @@ def run_all():
             ("test_physiology_lethal_medication_rupture_countdown", te.test_physiology_lethal_medication_rupture_countdown),
             ("test_guardrail_physical_exam_routing", te.test_guardrail_physical_exam_routing),
             ("test_guardrail_lab_and_imaging_routing", te.test_guardrail_lab_and_imaging_routing),
+            ("test_guardrail_routes_every_authored_lab_panel", te.test_guardrail_routes_every_authored_lab_panel),
             ("test_agent_patient_trust_evolution", te.test_agent_patient_trust_evolution),
             ("test_agent_nurse_order_and_critical_alarms", te.test_agent_nurse_order_and_critical_alarms),
             ("test_ged_evaluator_expert_pathway", te.test_ged_evaluator_expert_pathway),

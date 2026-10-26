@@ -113,6 +113,34 @@ def test_guardrail_lab_and_imaging_routing():
     assert "Stanford A型" in str(cta)
 
 
+def test_guardrail_routes_every_authored_lab_panel():
+    """病例 JSON 里写的每个 lab_panels 都必须能被开出来。
+
+    别名表曾只硬编码 8 个标准项，病例自带的 CRP、胸片、病原核酸、CT 等
+    19 项一点就回 NOT_CONFIGURED —— 数据在、引擎读不到。这里按病例逐个
+    断言，新增病例项忘了接线会立刻红。
+    """
+    import json
+    from pathlib import Path
+
+    data_dir = Path(__file__).resolve().parent.parent / "app" / "data"
+    case_files = sorted((data_dir / "cases").glob("*.json")) + [data_dir / "case_chest_pain.json"]
+    checked = 0
+    for case_file in case_files:
+        payload = json.loads(case_file.read_text(encoding="utf-8"))
+        panels = payload.get("lab_panels") or []
+        if not panels:
+            continue
+        guard = GuardrailEngine(case_file)
+        for panel in panels:
+            matched, report, _ = guard.route_lab_or_imaging(panel["name"])
+            assert matched is True, f"{case_file.name} 的【{panel['name']}】点不出来"
+            assert report is not None
+            assert report.get("status") != "NOT_CONFIGURED"
+            checked += 1
+    assert checked >= 30, f"只检查到 {checked} 个检查项，病例库可能没读到"
+
+
 # ================= 3. Multi-Agent Engine Tests =================
 
 def test_agent_patient_trust_evolution():

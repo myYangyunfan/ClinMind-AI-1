@@ -19,6 +19,51 @@ class GuardrailEngine:
         self.case_data: Dict[str, Any] = case_data or self._load_case_data()
         self.physical_findings = self.case_data.get("physical_exam_findings", {})
         self.lab_reports = self.case_data.get("lab_and_imaging_reports", {})
+        self.lab_panels = [p for p in (self.case_data.get("lab_panels") or []) if isinstance(p, dict)]
+
+    def _route_by_panel(self, order_name: str) -> Optional[Tuple[bool, Dict[str, Any], str]]:
+        """Route a lab/imaging order against the case's own `lab_panels[].alias`.
+
+        The hard-coded alias table below only knows eight stock panels, so any
+        authored panel outside that list (CRP, chest X-ray, pathogen PCR, CT …)
+        used to fall through to NOT_CONFIGURED while the data sat right there in
+        the case JSON. Matching the case's aliases keeps one source of truth:
+        the case file. Longest alias wins so "血气分析" beats the shorter "血".
+        """
+        name = "".join(order_name.lower().split())
+        if not name or not self.lab_panels:
+            return None
+        best: Optional[Dict[str, Any]] = None
+        best_len = 0
+        for panel in self.lab_panels:
+            for alias in panel.get("alias") or []:
+                key = "".join(str(alias).lower().split())
+                if key and key in name and len(key) > best_len:
+                    best, best_len = panel, len(key)
+        if best is None:
+            return None
+        rep: Dict[str, Any] = {
+            "item_name": best.get("name") or order_name,
+            "modality": best.get("modality", "LAB"),
+            "result": best.get("result_text", ""),
+            "conclusion": best.get("conclusion", ""),
+            "ref_range": best.get("ref_range", ""),
+            "clinical_hint": best.get("clinical_hint", ""),
+            "tat_seconds": best.get("tat_seconds"),
+            "decision_window": best.get("decision_window"),
+            "panel_id": best.get("panel_id"),
+            "is_gold_standard": bool(best.get("is_gold_standard")),
+        }
+        lines = [f"【{rep['item_name']}】"]
+        if rep["result"]:
+            lines.append(f"结果：{rep['result']}")
+        if rep["ref_range"]:
+            lines.append(f"参考区间：{rep['ref_range']}")
+        if rep["conclusion"]:
+            lines.append(f"结论：{rep['conclusion']}")
+        if rep["clinical_hint"]:
+            lines.append(f"提示：{rep['clinical_hint']}")
+        return True, rep, "\n".join(lines)
 
     @staticmethod
     def _text(value: Any) -> str:
@@ -147,6 +192,9 @@ class GuardrailEngine:
                 return True, rep, self._generic_report_message(order_name, rep)
 
         if self.case_data.get("case_id") != "case_chest_pain_001":
+            panel_hit = self._route_by_panel(order_name)
+            if panel_hit is not None:
+                return panel_hit
             default_rep = {
                 "item_name": order_name,
                 "modality": "LAB",
@@ -238,6 +286,9 @@ class GuardrailEngine:
 
         # Unmatched routine test: 防幻觉护栏不允许编造"正常"结果——
         # 未收录的检查项目必须诚实回绝，提示学员开立病例支持的检查。
+        panel_hit = self._route_by_panel(order_name)
+        if panel_hit is not None:
+            return panel_hit
         default_rep = {
             "item_name": order_name,
             "modality": "LAB",
