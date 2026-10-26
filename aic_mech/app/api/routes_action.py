@@ -1,12 +1,15 @@
 """Clinical Action Execution and Decision Router REST Routes."""
 
+import random
 import time
 import uuid
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Callable, Optional
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import ActionRequest, ActionResponse, DialogueMessage
 from app.models.entities import ActionRecord, ActionType, PatientStateEnum
 from app.core.session_manager import SessionStore
+from app.core.guardrail_engine import exam_refusal_settings, lab_pending_threshold_seconds
+from app.core import llm_guard
 import config
 
 router = APIRouter(prefix="/api/action", tags=["Action Execution"])
@@ -42,6 +45,56 @@ _QUESTION_KIND_TO_EVENT = {
 def _hit(text: str, keywords) -> bool:
     haystack = (text or "").lower()
     return any(k in haystack for k in keywords)
+
+
+# ================= 体查拒绝 / 检查 TAT（验收 GWT 04、05） =================
+# 概率源做成模块级可调用对象，测试直接 monkeypatch ``_refusal_rng``。
+_refusal_rng: Callable[[], float] = random.random
+
+
+def _exam_refused(session, rng: Optional[Callable[[], float]] = None) -> bool:
+    """患者是否拒绝配合本次体查：焦虑达阈值后按配置概率掷一次。
+
+    阈值与概率来自 ``guardrail_engine.exam_refusal_settings()``（config 可覆盖），
+    这里只做判决，不记账。
+    """
+    threshold, probability = exam_refusal_settings()
+    anxiety = float(session.emotion.snapshot().get("patient_anxiety", 0.0))
+    roll = float((rng or _refusal_rng)())
+    return anxiety >= threshold and roll < probability
+
+
+def _advance_virtual_time(session, seconds: float) -> int:
+    """把操作耗时记到会话自己的虚拟时钟上（同一个时钟，不另造计时器）。
+
+    只推 ``virtual_seconds``，不在动作里再 settle 生理/情绪：那 1 Hz 的
+    ``SessionStore.tick_all`` 本来就在推进病程与情绪结算，动作里再结算一次
+    等于把同一段时间算两遍。更关键的是床旁操作耗时是「操作节奏成本」——
+    查体所见已经由 guardrail 按病例数据给出，若这 300 秒还要把患者推到
+    S6，则「焦虑 0.92 时反复采样拒绝概率」根本采样不完（本病例 untreated
+    在 ~590 s 就进心脏骤停）。单次动作上限 1 小时，防呆。
+    """
+    total = int(max(0.0, min(float(seconds or 0.0), 3600.0)))
+    if total <= 0:
+        return 0
+    session.virtual_seconds += total
+    return total
+
+
+def _pending_checks(session) -> Dict[str, Dict[str, Any]]:
+    """会话级待回报登记簿（同一检查按 panel_id 去重）。
+
+    SessionManager 目前不持久化这个字段，进程内重启后待回报单会重新排队；
+    对实训场景可接受，等 engine-dev 把字段收进 snapshot 再升级。
+    """
+    pending = getattr(session, "pending_checks", None)
+    if not isinstance(pending, dict):
+        pending = {}
+        try:
+            session.pending_checks = pending
+        except AttributeError:  # pragma: no cover - 未来若加了 __slots__
+            pass
+    return pending
 
 
 def _split_inquiry_result(result):
@@ -100,6 +153,24 @@ def _apply_emotion(session, code: str, ctx: Dict[str, Any]) -> bool:
     return True
 
 
+# ============ LLM 输出后置校验（spec/04 §3.6 三道闸）============
+# 患者 / 家属台词是模型生成的自由文本，进入对话前必须过 A1 长度、A2 禁词；
+# 命中就换成离线兜底句，绝不把诊断名和剂量递给学员。医生、护士台词是本地
+# 模板，不送闸（否则会误伤"阿司匹林禁忌"这类教学提示）。
+_LLM_FALLBACK_LINE = "（患者迟疑了一下，没有接话）"
+
+
+def _guard_llm_dialogues(dialogues: List[DialogueMessage]) -> List[str]:
+    """就地清洗模型台词，返回命中原因列表（空列表 = 全部通过）。"""
+    _, reasons = llm_guard.guard_dialogues(
+        dialogues,
+        _LLM_FALLBACK_LINE,
+        source="agent_engine",
+        enforce_length=bool(config.is_online_llm_active()),
+    )
+    return reasons
+
+
 # ============ 处方红线（病例 JSON prescription_rules）============
 # 规则匹配与 severity 判罚都在 PhysiologyEngine 里完成（apply_medication 的
 # 第 0 步会先按病例 prescription_rules 匹配，命中 RED_LINE 就按 LETHAL /
@@ -129,6 +200,12 @@ def execute_action(req: ActionRequest):
     warning_text = None
     order_status = "executed"
     feedback_message = ""
+    # 体查拒绝/耗时与检查 TAT（验收 GWT 04、05）。
+    refused = False
+    status = "executed"
+    elapsed_seconds = 0.0
+    available_at_seconds: Optional[float] = None
+    remaining_seconds: Optional[float] = None
 
     # 情绪事件（契约 05 §4）：分支里定 code，动作执行完统一落账。
     emotion_code = None
@@ -140,6 +217,7 @@ def execute_action(req: ActionRequest):
     if action_type in (ActionType.INQUIRY, "inquiry", "ask"):
         inquiry_result = session.agent_engine.handle_inquiry(content, current_state)
         dialogues, inquiry_kind = _split_inquiry_result(inquiry_result)
+        _guard_llm_dialogues(dialogues)
         emotion_ctx = {"question_kind": inquiry_kind}
         if _hit(content, _COMFORT_KEYWORDS):
             # 安抚语义优先于问诊三分类：学生这句话的疗效来自安抚本身。
@@ -155,41 +233,67 @@ def execute_action(req: ActionRequest):
     # ================= 2. PHYSICAL EXAM (专科体查) =================
     elif action_type in (ActionType.PHYSICAL_EXAM, "physical_exam", "exam"):
         matched, report, msg = session.guardrail_engine.route_physical_exam(content)
+        procedure = float(session.guardrail_engine.procedure_seconds(content) or 0.0)
         emotion_ctx = {"item": content, "matched": matched}
-        if _hit(content, _EXPLAIN_KEYWORDS):
-            emotion_code, emotion_applied = "EXPLAIN_EXAM", True
-        else:
-            emotion_code, emotion_applied = "EXAM_CORRECT", True
-        feedback_message = msg
-        nurse_msg = session.agent_engine.notify_order_dispatched(f"体格检查：{content}")
-        dialogues.append(nurse_msg)
-        # 紧接着将客观体查读数与结论以床旁回报消息推入会话流
-        if msg:
-            report_msg = DialogueMessage(
-                speaker="nurse",
-                text=msg,
-                timestamp=time.time() + 0.5,
-                role_title="责任护士 (床旁体查回报)"
+        # GWT 04：焦虑到阈值后按配置概率拒绝，被拒也照样消耗操作耗时。
+        if _exam_refused(session):
+            refused = True
+            report = None
+            order_status = "refused"
+            status = "refused"
+            elapsed_seconds = float(_advance_virtual_time(session, procedure))
+            feedback_message = (
+                f"【患者拒绝配合】患者当前焦虑水平过高，拒绝配合「{content}」，检查未能完成。"
+                f"本次尝试已消耗 {int(elapsed_seconds)} 秒；请先安抚患者、解释检查目的后再试。"
             )
-            dialogues.append(report_msg)
-        
-        # 格式化客观凭证卡片数据
-        if report:
-            norm = dict(report)
-            norm["title"] = report.get("title") or report.get("item_name") or f"体格检查：{content}"
-            norm["modality"] = report.get("modality") or "EXAM"
-            norm["conclusion"] = report.get("conclusion") or report.get("interpretation") or (report.get("findings") if isinstance(report.get("findings"), str) else "") or "双侧血压对比明显不对称，提示大血管病变可能"
-            details = {}
-            if "right_arm" in report:
-                details["右上臂血压"] = report.get("right_arm")
-                details["左上臂血压"] = report.get("left_arm")
-                details["双臂压差"] = report.get("difference")
-                if report.get("interpretation"):
-                    details["临床提示"] = report.get("interpretation")
-            elif "findings" in report and isinstance(report["findings"], str):
-                details["查体所见"] = report["findings"]
-            norm["details"] = details
-            report_dict = norm
+            dialogues.append(session.agent_engine.notify_order_dispatched(f"体格检查：{content}（患者拒绝）"))
+            dialogues.append(DialogueMessage(
+                speaker="patient",
+                text="我现在很难受，不想再做什么检查了……",
+                timestamp=time.time() + 0.3,
+                role_title="患者 (拒绝配合)",
+            ))
+            # 引擎里 EXAM_REFUSED 的 delta 就是为这条支路准备的。
+            emotion_code, emotion_applied = "EXAM_REFUSED", True
+        else:
+            if _hit(content, _EXPLAIN_KEYWORDS):
+                emotion_code, emotion_applied = "EXPLAIN_EXAM", True
+            else:
+                emotion_code, emotion_applied = "EXAM_CORRECT", True
+            # GWT 04：未被拒时按 exam_options[].duration_seconds 推进虚拟时间。
+            elapsed_seconds = float(_advance_virtual_time(session, procedure))
+            feedback_message = msg
+            if procedure > 0:
+                feedback_message = f"{msg}\n（本次检查操作耗时 {int(procedure)} 秒）"
+            nurse_msg = session.agent_engine.notify_order_dispatched(f"体格检查：{content}")
+            dialogues.append(nurse_msg)
+            # 紧接着将客观体查读数与结论以床旁回报消息推入会话流
+            if msg:
+                report_msg = DialogueMessage(
+                    speaker="nurse",
+                    text=msg,
+                    timestamp=time.time() + 0.5,
+                    role_title="责任护士 (床旁体查回报)"
+                )
+                dialogues.append(report_msg)
+
+            # 格式化客观凭证卡片数据
+            if report:
+                norm = dict(report)
+                norm["title"] = report.get("title") or report.get("item_name") or f"体格检查：{content}"
+                norm["modality"] = report.get("modality") or "EXAM"
+                norm["conclusion"] = report.get("conclusion") or report.get("interpretation") or (report.get("findings") if isinstance(report.get("findings"), str) else "") or "双侧血压对比明显不对称，提示大血管病变可能"
+                details = {}
+                if "right_arm" in report:
+                    details["右上臂血压"] = report.get("right_arm")
+                    details["左上臂血压"] = report.get("left_arm")
+                    details["双臂压差"] = report.get("difference")
+                    if report.get("interpretation"):
+                        details["临床提示"] = report.get("interpretation")
+                elif "findings" in report and isinstance(report["findings"], str):
+                    details["查体所见"] = report["findings"]
+                norm["details"] = details
+                report_dict = norm
 
     # ================= 3. LAB / IMAGING ORDER (辅助检查) =================
     elif action_type in (ActionType.LAB_ORDER, "lab_order", "order", "lab"):
@@ -200,11 +304,58 @@ def execute_action(req: ActionRequest):
         emotion_ctx = {"item": content, "matched": matched}
         emotion_code, emotion_applied = "EXPLAIN_EXAM", True
         feedback_message = msg
-        nurse_msg = session.agent_engine.notify_order_dispatched(f"辅助检查开单送检：{content}")
-        dialogues.append(nurse_msg)
-        
-        # 将报告出具通知同步推入会话流
-        if msg:
+
+        # GWT 05：TAT 到期前只回「已送检」，不给报告。同一项检查按 panel_id
+        # 去重——到期前重复下单仍回 pending 并带剩余秒数，到点后才转 ready。
+        panel = session.guardrail_engine.find_lab_panel(content) or {}
+        report_meta = report or {}
+        tat = float(report_meta.get("tat_seconds") or panel.get("tat_seconds") or 0.0)
+        item_name = report_meta.get("item_name") or panel.get("name") or content
+        if tat > 0 and tat > lab_pending_threshold_seconds():
+            pending = _pending_checks(session)
+            key = str(report_meta.get("panel_id") or panel.get("panel_id") or content.strip().lower())
+            now = float(session.virtual_seconds)
+            entry = pending.get(key)
+            if entry is None:
+                entry = {
+                    "item_name": item_name,
+                    "order": content,
+                    "tat_seconds": tat,
+                    "ordered_at_seconds": now,
+                    "available_at_seconds": now + tat,
+                }
+                pending[key] = entry
+            available_at = float(entry["available_at_seconds"])
+            if now < available_at:
+                remaining = max(0.0, available_at - now)
+                report = None
+                order_status = "pending"
+                status = "pending"
+                available_at_seconds = available_at
+                remaining_seconds = remaining
+                feedback_message = (
+                    f"【已送检·等待回报】{item_name} 已送检，TAT 约 {int(tat)} 秒，"
+                    f"当前剩余 {int(remaining)} 秒，报告尚未回报。"
+                )
+                dialogues.append(session.agent_engine.notify_order_dispatched(f"辅助检查开单送检：{content}"))
+                dialogues.append(DialogueMessage(
+                    speaker="nurse",
+                    text=f"标本/患者已送达，{item_name} 预计 {int(remaining)} 秒后出结果。",
+                    timestamp=time.time() + 0.4,
+                    role_title="急诊检验/放射科 (接收回执)",
+                ))
+            else:
+                pending.pop(key, None)
+                order_status = "ready"
+                status = "ready"
+                dialogues.append(session.agent_engine.notify_order_dispatched(f"辅助检查开单送检：{content}"))
+        else:
+            order_status = "ready"
+            status = "ready"
+            dialogues.append(session.agent_engine.notify_order_dispatched(f"辅助检查开单送检：{content}"))
+
+        # 将报告出具通知同步推入会话流（pending 时 report 为空，不推报告卡）
+        if report and msg:
             report_msg = DialogueMessage(
                 speaker="nurse",
                 text=msg,
@@ -310,7 +461,9 @@ def execute_action(req: ActionRequest):
 
         elif any(k in c_lower for k in ["知情同意", "病危", "沟通", "交代", "签字"]):
             feedback_message = "【知情同意交代】已向家属详尽交待急性主动脉夹层极高破裂风险，家属李秀梅已含泪签署急诊开胸手术知情同意书及病危通知书。"
-            dialogues.extend(session.agent_engine.handle_inquiry("签署知情同意与病危通知", current_state))
+            consent_dialogues = session.agent_engine.handle_inquiry("签署知情同意与病危通知", current_state)
+            _guard_llm_dialogues(consent_dialogues)
+            dialogues.extend(consent_dialogues)
             if emotion_code is None:
                 # 02 §1.3 E12（知情同意/签字）的 delta 已内置在引擎里，且注释
                 # 写明是留给 API 层的；这条支路本身就是判定，不是猜。
@@ -384,5 +537,10 @@ def execute_action(req: ActionRequest):
         patient_state=new_state,
         warning=warning_text,
         is_contraindicated=is_contraindicated,
-        emotion_applied=emotion_applied
+        emotion_applied=emotion_applied,
+        refused=refused,
+        elapsed_seconds=elapsed_seconds,
+        status=status,
+        available_at_seconds=available_at_seconds,
+        remaining_seconds=remaining_seconds,
     )

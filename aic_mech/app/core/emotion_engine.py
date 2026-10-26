@@ -26,7 +26,7 @@ from __future__ import annotations
 import threading
 from collections import deque
 from dataclasses import dataclass, asdict
-from typing import Any, Deque, Dict, Optional
+from typing import Any, Callable, Deque, Dict, Optional
 
 import config
 
@@ -157,7 +157,7 @@ EVENT_TABLE: Dict[str, EventSpec] = {
     "SKIP_ALLERGY": EventSpec(-0.10, 0.05, 0.04),
     "EXAM_CORRECT": EventSpec(0.02, -0.02, -0.01),
     "CORRECT_TREATMENT": EventSpec(0.04, -0.06, -0.08, max_times=3),
-    "RED_LINE_MED": EventSpec(0.0, 0.0, 0.0),
+    "RED_LINE_MED": EventSpec(-0.12, 0.15, 0.15),
     # Secondary codes from spec/02 §1.3 kept available for the API layer.
     "IDLE": EventSpec(0.0, 0.03, 0.02, cooldown_s=30.0),
     "FAMILY_INTERRUPT": EventSpec(-0.01, 0.01, 0.02,
@@ -216,6 +216,10 @@ class EmotionEngine:
         self.agitated: bool = False
         self.leave_reason: Optional[str] = None
         self.clinical_state: Optional[str] = None  # set by SimulationSession
+
+        # 状态镜像回调（spec/02 §1 唯一真值）：每次结算/事件后把三真值推给
+        # SimulationSession，由它写进 AgentState，避免两本账。默认不挂。
+        self.on_state_change: Optional[Callable[["EmotionState"], None]] = None
 
         # Throttling
         self._cooldowns: Dict[str, float] = {}
@@ -281,6 +285,8 @@ class EmotionEngine:
                     break
             if settled >= MAX_CATCHUP_STEPS:
                 self.accumulator = 0.0
+            if settled:
+                self._publish_state()
             return total
 
     def _settle_once(self) -> Dict[str, float]:
@@ -394,6 +400,7 @@ class EmotionEngine:
 
             self._update_affect()
             self._evaluate()
+            self._publish_state()
 
             return {
                 "patient_trust": new_trust - prev_trust,
@@ -402,6 +409,16 @@ class EmotionEngine:
             }
 
     # -- thresholds ---------------------------------------------------------
+    def _publish_state(self) -> None:
+        """把三真值推给镜像方（SimulationSession → AgentState）。失败不影响结算。"""
+        callback = self.on_state_change
+        if callback is None:
+            return
+        try:
+            callback(self.state)
+        except Exception:  # pragma: no cover - 镜像失败不能拖垮情绪结算
+            pass
+
     def _update_affect(self) -> None:
         """Agitated flag with hysteresis (0.70 in / 0.65 out)."""
         anxiety = self.state.patient_anxiety

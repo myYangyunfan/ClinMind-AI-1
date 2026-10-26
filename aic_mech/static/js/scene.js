@@ -43,6 +43,16 @@
     {key: 'family_anxiety', label: '家属焦虑', trendKey: 'anxiety_trend'}
   ];
   const TREND_WINDOW_MS = 30000, TREND_EPS = 0.02, EMOTION_TICK_MS = 5000, DISCLAIMER_KEY = 'clinmind-disclaimer-ack';
+  // 病程映射只在常量里维护一处：稳定 / 恶化 / 危象三档。
+  const PHASE_BANDS = {
+    S0_STABLE: 'stable', S2_PHARMACO_CONTROLLED: 'stable',
+    S3_PERICARDIAL_EFFUSION: 'worsen',
+    S1_HYPERTENSION_CRISIS: 'crisis', S4_CARDIAC_TAMPONADE: 'crisis',
+    S5_AORTIC_RUPTURE: 'crisis', S6_CARDIAC_ARREST: 'crisis'
+  };
+  const PHASE_LABELS = {stable: '稳定期', worsen: '恶化期', crisis: '危象期'};
+  const PHASE_BAND_LIST = ['stable', 'worsen', 'crisis'];
+  const TAT_TICK_MS = 500, TAT_HIDE_MS = 3200;
   const state = {
     ended: false,
     refused: false,
@@ -53,6 +63,7 @@
     lastSampleAt: 0
   };
   let emotionTimer;
+  let tatTick, tatHideTimer;
   const waveSvg = $('.wave-svg');
   const waveLines = waveSvg ? $$('polyline', waveSvg) : [];
   if (waveSvg) {
@@ -211,6 +222,75 @@
     $$('.dock-tab,.tab,.inquiry-button,.send,.next-btn,.end-btn').forEach(node => node.setAttribute('aria-disabled', String(ended)));
     const tick = $('.scene-emotion-tick');
     if (tick) tick.textContent = ended ? '已结束 · 操作冻结' : '5 秒刷新';
+  }
+  function phaseBandOf(stateName) {
+    const key = String(stateName || '').trim().toUpperCase();
+    return PHASE_BANDS[key] || (key ? 'worsen' : '');
+  }
+  function renderPhase(stateName) {
+    const strip = $('.scene-phase-strip');
+    if (!strip) return;
+    const band = phaseBandOf(stateName);
+    if (!band) { strip.hidden = true; return; }
+    strip.hidden = false;
+    PHASE_BAND_LIST.forEach(name => strip.classList.toggle(`scene-phase-${name}`, name === band));
+    const value = $('.scene-phase-value', strip);
+    if (value) value.textContent = PHASE_LABELS[band];
+    strip.setAttribute('data-phase', String(stateName || ''));
+  }
+  function stopTatTicker() {
+    clearInterval(tatTick); tatTick = null;
+    clearTimeout(tatHideTimer); tatHideTimer = null;
+  }
+  function hideTat() {
+    stopTatTicker();
+    const panel = $('.scene-tat');
+    if (panel) { panel.hidden = true; panel.classList.remove('scene-tat-ready'); }
+  }
+  // 只按 pending/ready + 剩余秒数推进；字段缺失（NaN）时整块隐藏，不做猜测。
+  function paintTat(remaining, total, itemName) {
+    const panel = $('.scene-tat'); if (!panel) return;
+    const done = total > 0 ? Math.min(1, Math.max(0, 1 - remaining / total)) : 0;
+    const fill = $('.scene-tat-fill', panel); if (fill) fill.style.width = `${(done * 100).toFixed(1)}%`;
+    const left = $('.scene-tat-remaining', panel); if (left) left.textContent = `${Math.max(0, Math.ceil(remaining))} 秒`;
+    const item = $('.scene-tat-item', panel); if (item && itemName) item.textContent = itemName;
+    const ready = remaining <= 0;
+    const title = $('.scene-tat-title', panel);
+    if (title) title.textContent = ready ? '已可查看' : '检查进行中';
+    panel.classList.toggle('scene-tat-ready', ready);
+  }
+  function renderTat(data) {
+    const panel = $('.scene-tat'); if (!panel) return;
+    if (!data || typeof data !== 'object') { hideTat(); return; }
+    const status = String(data.status || data.order_status || '').toLowerCase();
+    const total = Number(data.tat_seconds);
+    const availableAt = Number(data.available_at_seconds);
+    const virtualNow = Number(snapshot?.virtual_seconds);
+    let remaining = Number(data.remaining_seconds);
+    if (!Number.isFinite(remaining)) {
+      remaining = Number.isFinite(availableAt) && Number.isFinite(virtualNow) ? availableAt - virtualNow : NaN;
+    }
+    const span = Number.isFinite(total) && total > 0 ? total : remaining;
+    if (status === 'ready') {
+      stopTatTicker();
+      paintTat(0, Number.isFinite(span) && span > 0 ? span : 1, data.content);
+      tatHideTimer = setTimeout(hideTat, TAT_HIDE_MS);
+      return;
+    }
+    if (status !== 'pending' || !Number.isFinite(remaining) || remaining <= 0) { hideTat(); return; }
+    const itemName = String(data.content || data.report?.title || data.report?.name || '检查项目').slice(0, 80);
+    stopTatTicker();
+    panel.hidden = false;
+    paintTat(remaining, span, itemName);
+    const deadline = performance.now() + remaining * 1000;
+    tatTick = setInterval(() => {
+      const left = (deadline - performance.now()) / 1000;
+      paintTat(left, span);
+      if (left <= 0) {
+        stopTatTicker();
+        tatHideTimer = setTimeout(hideTat, TAT_HIDE_MS);
+      }
+    }, TAT_TICK_MS);
   }
   function startEmotionTicker() {
     clearInterval(emotionTimer);
@@ -564,6 +644,7 @@
       if (bar) bar.style.width = `${val}%`;
     });
     renderEmotionPanel(snapshot);
+    renderPhase(snapshot.patient_state || monitorState.patientState);
     const criticalState = snapshot.rupture_countdown != null || (snapshot.patient_state && snapshot.patient_state !== 'S0_STABLE');
     alert.textContent = criticalState ? `模拟危急状态 · ${snapshot.patient_state || '生命体征变化'} · 声光报警已触发` : '';
     if (snapshot.is_finished) { const live=$('.live'); if(live) live.textContent='已结案 · 监护冻结'; }
@@ -650,6 +731,7 @@
     busy=true;document.body.classList.add('is-busy');
     try {
       const result=await api('/api/action/execute',{session_id:sessionId,action_type:menu[tab].type,content,params:{}});
+      renderTat({...result, content});
       input.value='';await refresh();showLog();
       if(result.report){const body=openDialog('客观检查报告');body.append(reportCard(result.report));}
       toast(result.warning || result.message,!!result.warning);
@@ -776,6 +858,55 @@
     card.append(grid, element('p', '取结案时刻的会话状态，用于复盘沟通效果。', 'scene-footnote'));
     body.append(card);
   }
+  function timelineVerdict(item) {
+    if (item.is_fatal) return '禁忌';
+    return item.matched_golden ? '正常' : '无效';
+  }
+  function formatTimelineOffset(seconds) {
+    const total = Math.max(0, Math.round(seconds));
+    return `第 ${Math.floor(total / 60)} 分 ${String(total % 60).padStart(2, '0')} 秒`;
+  }
+  function timelineAttribution(items) {
+    if (items.length < 3) return '动作过少，无法归因。';
+    const fatal = items.find(item => item.fatal);
+    if (fatal) return `最先出错的一步是「${fatal.name}」——禁忌操作，直接触发生命风险。`;
+    const invalid = items.find(item => item.invalid);
+    if (invalid) return `最先出错的一步是「${invalid.name}」——未命中关键处置步骤。`;
+    return '关键动作顺序完整，未发现明显错误。';
+  }
+  function renderTimeline(body, data) {
+    const raw = Array.isArray(data?.action_sequence_summary) ? data.action_sequence_summary : [];
+    if (!raw.length) return;
+    const stamps = raw.map(item => Number(item?.timestamp)).filter(Number.isFinite);
+    const origin = stamps.length ? Math.min(...stamps) : NaN;
+    const items = raw.map((action, index) => ({
+      order: index,
+      offset: Number.isFinite(Number(action?.timestamp)) && Number.isFinite(origin) ? Number(action.timestamp) - origin : NaN,
+      name: String(action?.content || action?.type || '动作').slice(0, 90),
+      verdict: timelineVerdict(action || {}),
+      fatal: !!action?.is_fatal,
+      invalid: !action?.is_fatal && !action?.matched_golden
+    }));
+    // 禁忌/致命项置顶，其余按时间升序；无时间戳时退回原始顺序。
+    items.sort((a, b) => {
+      if (a.fatal !== b.fatal) return a.fatal ? -1 : 1;
+      if (Number.isFinite(a.offset) && Number.isFinite(b.offset)) return a.offset - b.offset;
+      return a.order - b.order;
+    });
+    const details = document.createElement('details');
+    details.className = 'scene-timeline';
+    details.append(element('summary', `操作时间线（${items.length} 项）`));
+    items.forEach(item => {
+      const row = element('p', undefined, `scene-timeline-item${item.fatal ? ' scene-timeline-item-fatal' : ''}${item.invalid ? ' scene-timeline-invalid' : ''}`);
+      const time = Number.isFinite(item.offset) ? formatTimelineOffset(item.offset) : `第 ${item.order + 1} 步`;
+      row.append(element('span', time, 'scene-timeline-time'),
+        element('span', item.name, 'scene-timeline-name'),
+        element('span', `· ${item.verdict}`, 'scene-timeline-result'));
+      details.append(row);
+    });
+    details.append(element('p', timelineAttribution(items), 'scene-timeline-attribution'));
+    body.append(details);
+  }
   function renderAssessment(data) {
     const body=openDialog('OSCE 临床思维训练报告');
     const outcome=reportOutcome(data.outcome || data.assessment?.outcome);
@@ -788,7 +919,7 @@
     [...data.fatal_errors,...data.clinical_feedback].forEach(t=>body.append(element('p',t)));
     const knowledge=reportKnowledge(data.knowledge_card || data.assessment?.knowledge_card || data.knowledge);
     if(knowledge)appendKnowledgeCard(body,knowledge);
-    const steps=document.createElement('details');steps.append(element('summary',`操作时间线（${data.action_sequence_summary.length} 项）`));data.action_sequence_summary.forEach((a,i)=>steps.append(element('p',`${i+1}. ${a.content}`)));body.append(steps);
+    renderTimeline(body, data);
     const actions=element('div',undefined,'scene-actions');const download=element('button','导出 JSON 报告');download.onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`ClinMind-${sessionId}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};const next=element('button','开始下一次训练','secondary');next.onclick=()=>startNew();actions.append(download,next);body.append(actions,element('p','此报告由演示病例与规则评分生成，用于临床思维教学模拟。','scene-footnote'));
   }
   function evaluation() {
@@ -868,6 +999,13 @@
     if(!workstation && /^[1-5]$/.test(e.key)) setTab(Number(e.key)-1);
   });
   addEventListener('beforeunload',()=>{stopped=true;clearTimeout(reconnectTimer);clearTimeout(speechTimer);clearInterval(staleTimer);clearInterval(emotionTimer);ws?.close();});
+  // 验收09：localStorage 里可能留着一个已结案/已终止的旧会话，恢复它只会把用户卡在冻结界面。
+  // 判定只依赖快照里真实存在的字段（is_finished / terminal_reason），以及本页已推算出的 state.ended；
+  // 工作区快照没有创建时间/最后活动时间字段，所以不做「过期时长」判断，避免硬造数据。
+  function sessionEnded() {
+    const reason = snapshot?.terminal_reason;
+    return state.ended === true || !!snapshot?.is_finished || (typeof reason === 'string' && reason.trim() !== '');
+  }
   async function initialize() {
     stopped=false;reconnectCount=0;lastAlarmAt=-Infinity;
     state.ended=false;state.refused=false;state.lastSampleAt=0;
@@ -875,8 +1013,18 @@
     for(const key of Object.keys(state.trendHint))state.trendHint[key]=null;
     document.body.classList.remove('scene-ended','is-finished');
     sessionId=localStorage.getItem('clinmind-game-session');
-    if(sessionId){try{await refresh();}catch(e){if(e.status!==404)throw e;sessionId=null;localStorage.removeItem('clinmind-game-session');}}
+    let discarded=false;
+    if(sessionId){try{await refresh();
+      if(sessionEnded()){
+        localStorage.removeItem('clinmind-game-session');
+        sessionId=null;snapshot=null;discarded=true;
+        state.ended=false;state.refused=false;
+        document.body.classList.remove('scene-ended','is-finished');
+      }
+    }catch(e){if(e.status!==404)throw e;sessionId=null;localStorage.removeItem('clinmind-game-session');}}
     if(!sessionId){const caseId=localStorage.getItem('clinmind-case-id') || 'case_chest_pain_001';const data=await api('/api/case/start',{case_id:caseId,student_name:'临床思维训练学员'});sessionId=data.session_id;localStorage.setItem('clinmind-game-session',sessionId);await refresh();}
+    // 刷新完成后再提示，保证状态条展示的是新会话而不是被丢弃的旧终态。
+    if(discarded)toast('上一次训练已结束，已为你开启新会话');
     if(workstation)setTab(0,false);
     connect();
   }

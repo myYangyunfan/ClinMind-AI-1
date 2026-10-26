@@ -191,11 +191,14 @@ class EmotionEventTests(unittest.TestCase):
         blocked = engine.apply_event("CORRECT_TREATMENT")
         self.assertEqual(sum(blocked.values()), 0.0)
 
-    def test_red_line_medication_is_a_noop(self):
+    def test_red_line_medication_punishes_trust(self):
+        """spec/02 §1 事件表：RED_LINE_MED = (trust -0.12, 患者焦虑 +0.15, 家属焦虑 +0.15)。"""
         engine = EmotionEngine()
         delta = engine.apply_event("RED_LINE_MED")
-        self.assertEqual(sum(delta.values()), 0.0)
-        self.assertEqual(engine.state.patient_trust, config.EMOTION_TRUST_INIT)
+        self.assertAlmostEqual(delta["patient_trust"], -0.12, places=9)
+        self.assertAlmostEqual(delta["patient_anxiety"], 0.15, places=9)
+        self.assertAlmostEqual(delta["family_anxiety"], 0.15, places=9)
+        self.assertLess(engine.state.patient_trust, config.EMOTION_TRUST_INIT)
 
     def test_negative_streak_resets_on_positive_event(self):
         engine = EmotionEngine()
@@ -630,10 +633,11 @@ class LlmDialoguePathTests(unittest.TestCase):
         payload = "```\n" + json.dumps({"patient": "疼……", "family": ""}, ensure_ascii=False) + "\n```"
         self.assertIsNotNone(self._call_multi(payload))
 
-    def test_raw_text_falls_back_to_patient_bubble(self):
+    def test_raw_text_is_rejected_not_pasted_into_bubble(self):
+        # spec/04 §3.6 A3：非结构化的自由文本不再直接灌进患者气泡，
+        # 一律拒绝（返回 None），由调用方回退离线台词。
         messages = self._call_multi("（疼得说不出话）")
-        self.assertEqual(len(messages), 1)
-        self.assertIn("来自在线大模型协同", messages[0].text)
+        self.assertIsNone(messages)
 
     def test_http_error_returns_none(self):
         self.assertIsNone(self._call_multi("boom", status=500))

@@ -18,6 +18,7 @@ os.environ.setdefault("USE_ONLINE_LLM", "false")
 from fastapi.testclient import TestClient
 
 import config
+from app.core import llm_guard
 from app.core.case_repository import get_case_repository
 from app.core.ged_evaluator import (
     ConditionSyntaxError,
@@ -379,6 +380,277 @@ class OutcomeApiTests(unittest.TestCase):
         self.assertIsNotNone(outcome)
         self.assertNotEqual(outcome["code"], "A")
         self.assertEqual(outcome["code"], "D")
+
+
+class ExamTimingAndTatTests(unittest.TestCase):
+    """验收 GWT 04/05：体查拒绝与耗时、检查 TAT 未回报期间不给报告。"""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path_patch = patch.object(config, "RUNTIME_DIR", Path(self.temp.name))
+        self.path_patch.start()
+        self.old_store = SessionStore._instance
+        SessionStore._instance = None
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        SessionStore._instance = self.old_store
+        self.path_patch.stop()
+        self.temp.cleanup()
+
+    # ---------------- helpers ----------------
+    def start(self, case_id):
+        response = self.client.post("/api/case/start", json={"case_id": case_id})
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()["session_id"]
+
+    def session(self, session_id):
+        return SessionStore.get_instance().get_session(session_id)
+
+    def act(self, session_id, action_type, content, **params):
+        return self.client.post(
+            "/api/action/execute",
+            json={
+                "session_id": session_id,
+                "action_type": action_type,
+                "content": content,
+                "params": params,
+            },
+        )
+
+    def make_anxious(self, session_id, anxiety=0.92):
+        session = self.session(session_id)
+        session.emotion.state.patient_anxiety = anxiety
+        session.emotion._update_refuse()
+        return session
+
+    # ---------------- GWT 04：拒绝 + 耗时 ----------------
+    def test_high_anxiety_exam_is_refused_but_still_costs_time(self):
+        from app.api import routes_action
+
+        session_id = self.start(CHEST_PAIN_CASE_ID)
+        session = self.make_anxious(session_id)
+        before = session.virtual_seconds
+        with patch.object(routes_action, "_refusal_rng", lambda: 0.0):
+            response = self.act(session_id, "physical_exam", "床旁超声心动图")
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertTrue(payload["refused"], "焦虑 0.92 + 概率 0 必须被拒")
+        self.assertEqual(payload["status"], "refused")
+        self.assertIsNone(payload["report"], "被拒不得编造查体报告")
+        self.assertFalse(payload["emotion_applied"] is False)
+        self.assertIn("拒绝", payload["message"])
+        # 被拒也照样消耗这次操作应占的 300 秒（POCUS 在病例里的 TAT 即操作耗时）
+        self.assertEqual(payload["elapsed_seconds"], 300.0)
+        self.assertEqual(session.virtual_seconds - before, 300)
+
+    def test_calm_patient_exam_completes_and_costs_authored_duration(self):
+        from app.api import routes_action
+
+        session_id = self.start(CHEST_PAIN_CASE_ID)
+        session = self.session(session_id)
+        before = session.virtual_seconds
+        with patch.object(routes_action, "_refusal_rng", lambda: 0.999):
+            response = self.act(session_id, "physical_exam", "双侧上肢血压对比测量")
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertFalse(payload["refused"])
+        self.assertIsNotNone(payload["report"], "未拒绝时必须给查体报告")
+        # exam_options[0] 的 duration_seconds = 60
+        self.assertEqual(payload["elapsed_seconds"], 60.0)
+        self.assertEqual(session.virtual_seconds - before, 60)
+
+    def test_refusal_probability_comes_from_config_when_present(self):
+        from app.api import routes_action
+
+        session_id = self.start(CHEST_PAIN_CASE_ID)
+        self.make_anxious(session_id, 0.95)
+        # 概率 0：即使焦虑很高也绝不拒绝——证明概率不是写死的 0.5
+        with patch.object(routes_action, "_refusal_rng", lambda: 0.4), patch.object(
+            config, "EXAM_REFUSE_PROBABILITY", 0.0, create=True
+        ):
+            response = self.act(session_id, "physical_exam", "双侧上肢血压对比测量")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(response.json()["refused"])
+
+    # ---------------- GWT 05：TAT 未回报 ----------------
+    def test_lab_is_pending_until_tat_elapsed_then_ready(self):
+        session_id = self.start(COMMON_COLD_CASE_ID)
+        session = self.session(session_id)
+        # 把「走 pending 的 TAT 门槛」压到 0：本用例要验时序，不是验门槛。
+        with patch.object(config, "LAB_PENDING_TAT_THRESHOLD_SECONDS", 0.0, create=True):
+            first = self.act(session_id, "lab_order", "血常规")
+            self.assertEqual(first.status_code, 200, first.text)
+            pending = first.json()
+            self.assertEqual(pending["status"], "pending")
+            self.assertIsNone(pending["report"], "TAT 未到不得返回报告")
+            self.assertEqual(pending["available_at_seconds"], 900.0)
+            self.assertEqual(pending["remaining_seconds"], 900.0)
+            self.assertIn("尚未回报", pending["message"])
+
+            # 同一检查在到期前重复下单：仍 pending，还剩 900 秒
+            repeat = self.act(session_id, "lab_order", "血常规").json()
+            self.assertEqual(repeat["status"], "pending")
+            self.assertIsNone(repeat["report"])
+            self.assertEqual(repeat["remaining_seconds"], 900.0)
+
+            # 虚拟时间推过 TAT 后：同一项检查转 ready 并给完整报告
+            for _ in range(900):
+                session.tick(1.0)
+            ready = self.act(session_id, "lab_order", "血常规").json()
+            self.assertEqual(ready["status"], "ready")
+            self.assertIsNotNone(ready["report"], "TAT 到期后必须给报告")
+            self.assertTrue(ready["report"].get("result"))
+            self.assertNotIn("status", ready["report"])  # 报告本身不该带 pending 标记
+
+    def test_quick_panel_keeps_immediate_report_contract(self):
+        # ≤900s 的床旁/STAT 项目保持既有「下单即回报」契约（回归保护）
+        session_id = self.start(CHEST_PAIN_CASE_ID)
+        response = self.act(session_id, "lab_order", "床旁18导联同步心电图")
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertEqual(payload["status"], "ready")
+        self.assertIsNotNone(payload["report"])
+        self.assertIsNone(payload["available_at_seconds"])
+
+    def test_pending_order_does_not_leak_report_into_history(self):
+        # 未回报的检查不能把 findings 写进 ActionRecord（复盘的证据链要干净）
+        session_id = self.start(CHEST_PAIN_CASE_ID)
+        with patch.object(config, "LAB_PENDING_TAT_THRESHOLD_SECONDS", 0.0, create=True):
+            response = self.act(session_id, "lab_order", "高敏心肌钙蛋白I")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["status"], "pending")
+        session = self.session(session_id)
+        record = session.action_history[-1]
+        self.assertNotIn("result", str(record.result))
+        self.assertIn("尚未回报", str(record.result))
+
+
+class LlmGuardTests(unittest.TestCase):
+    """spec/04 §3.6 三道闸：A1 长度、A2 禁词、A3 结构。
+
+    在线模型可能说出「主动脉夹层」或「阿司匹林 300mg」——这些必须在进入
+    对话前被丢弃并回退到离线文案，而不是直接给学员看。
+    """
+
+    FALLBACK = "（患者迟疑了一下，没有接话）"
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path_patch = patch.object(config, "RUNTIME_DIR", Path(self.temp.name))
+        self.path_patch.start()
+        self.old_store = SessionStore._instance
+        SessionStore._instance = None
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        SessionStore._instance = self.old_store
+        self.path_patch.stop()
+        self.temp.cleanup()
+
+    def start(self, case_id=CHEST_PAIN_CASE_ID):
+        response = self.client.post("/api/case/start", json={"case_id": case_id})
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()["session_id"]
+
+    # ---------------- A2 禁词 ----------------
+    def test_a2_blocks_diagnosis_name(self):
+        text = "你这个情况我见过很多次，其实就是主动脉夹层，需要马上安排手术处理。"
+        result = llm_guard.guard_text(text, self.FALLBACK, source="test", enforce_length=False)
+        self.assertFalse(result.accepted)
+        self.assertEqual(result.reason, "A2")
+        self.assertEqual(result.text, self.FALLBACK)
+        self.assertIn("主动脉夹层", result.original)
+
+    def test_a2_blocks_stanford_and_pe_terms(self):
+        for term in ("Stanford A 型", "考虑肺栓塞", "这是心肌梗死"):
+            result = llm_guard.guard_text(
+                f"医生，我上网查过，{term}，是不是很严重？", self.FALLBACK, enforce_length=False
+            )
+            self.assertFalse(result.accepted, term)
+            self.assertEqual(result.reason, "A2", term)
+
+    def test_a2_blocks_dose_regex(self):
+        for text in ("先含一片硝酸甘油 5 mg 看看", "舌下含服 0.5mg", "推 10 mL 盐水", "给 5000 U 肝素"):
+            result = llm_guard.guard_text(text, self.FALLBACK, enforce_length=False)
+            self.assertFalse(result.accepted, text)
+            self.assertEqual(result.reason, "A2", text)
+
+    def test_clean_text_passes(self):
+        text = "医生，我这胸口从昨天晚上开始就一直闷痛，像被石头压着一样，还向后背放射，含了药也不见好，现在有点喘不上气。"
+        result = llm_guard.guard_text(text, self.FALLBACK, enforce_length=True)
+        self.assertTrue(result.accepted)
+        self.assertIsNone(result.reason)
+        self.assertEqual(result.text, text)
+
+    # ---------------- A1 长度 ----------------
+    def test_a1_discards_overlong_text(self):
+        limit = llm_guard.max_chars()
+        result = llm_guard.guard_text("胸" * (limit + 1), self.FALLBACK, enforce_length=True)
+        self.assertFalse(result.accepted)
+        self.assertEqual(result.reason, "A1")
+        self.assertEqual(result.text, self.FALLBACK)
+
+    def test_a1_keeps_short_cry(self):
+        # A1 只守上限：短呻吟（"呃啊……"）是合法的患者台词，不该被长度下限判死
+        result = llm_guard.guard_text("嗯。", self.FALLBACK, enforce_length=True)
+        self.assertTrue(result.accepted)
+        self.assertIsNone(result.reason)
+
+    # ---------------- A3 结构 ----------------
+    def test_a3_falls_back_on_bad_json(self):
+        fallback = {"patient": "（患者没说话）", "family": "（家属看了看患者）"}
+        for raw in ("{not json", "[]", "{}", '{"patient": "   "}', "```json\n{oops}\n```"):
+            data, reason = llm_guard.guard_structured(raw, fallback)
+            self.assertEqual(reason, "A3", raw)
+            self.assertEqual(data, fallback, raw)
+
+    def test_a3_accepts_patient_only(self):
+        # 家属这一轮可以不说话：只给 patient 是合法结果，family 缺省为空
+        data, reason = llm_guard.guard_structured('{"patient": "呃啊……大夫，后背也疼"}', {"patient": "", "family": ""})
+        self.assertIsNone(reason)
+        self.assertEqual(data["patient"], "呃啊……大夫，后背也疼")
+        self.assertEqual(data["family"], "")
+
+    def test_a3_accepts_valid_pair_and_blocks_term_inside(self):
+        fallback = {"patient": "（模板）", "family": "（模板）"}
+        good = '{"patient": "我胸口疼得厉害", "family": "医生您一定要救救他"}'
+        data, reason = llm_guard.guard_structured(good, fallback)
+        self.assertIsNone(reason)
+        self.assertEqual(data["patient"], "我胸口疼得厉害")
+        bad = '{"patient": "你这是主动脉夹层", "family": "快手术"}'
+        data, reason = llm_guard.guard_structured(bad, fallback)
+        self.assertEqual(reason, "A2")
+        self.assertEqual(data, fallback)
+
+    # ---------------- 接线：问诊出口必须过闸 ----------------
+    def test_api_inquiry_dialogue_is_sanitized(self):
+        from app.models.entities import DialogueMessage
+
+        session_id = self.start()
+        session = SessionStore.get_instance().get_session(session_id)
+        unsafe = [
+            DialogueMessage(speaker="patient", text="你这是主动脉夹层，先吃阿司匹林 300mg 吧", role_title="患者"),
+            DialogueMessage(speaker="doctor", text="别紧张，我先给您做个体查。", role_title="医生"),
+        ]
+        with patch.object(session.agent_engine, "handle_inquiry", return_value=unsafe):
+            response = self.client.post(
+                "/api/action/execute",
+                json={"session_id": session_id, "action_type": "inquiry", "content": "您哪里不舒服", "params": {}},
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        patient_lines = [d for d in payload["dialogues"] if d.get("speaker") == "patient"]
+        self.assertTrue(patient_lines, "问诊响应里应回放患者台词")
+        self.assertEqual(patient_lines[0]["text"], "（患者迟疑了一下，没有接话）")
+        doctor_lines = [d for d in payload["dialogues"] if d.get("speaker") == "doctor"]
+        self.assertTrue(any("别紧张" in d["text"] for d in doctor_lines), "医生台词不该被 A2 误伤")
+
+    def test_guard_can_be_switched_off_by_config(self):
+        text = "考虑主动脉夹层。"
+        with patch.object(config, "LLM_GUARD_BLOCK_DIAGNOSIS", False):
+            result = llm_guard.guard_text(text, self.FALLBACK, enforce_length=False)
+        self.assertTrue(result.accepted)
 
 
 if __name__ == "__main__":

@@ -548,3 +548,205 @@ def test_case_validation_strict_mode_raises_and_reports():
         shutil.rmtree(tmp_dir, ignore_errors=True)
     print("  case validation ok: 默认档留痕跳过 / 严格档抛错")
 
+
+# ================= 7. 问诊三分类 / 病例契约 / 信任双真值（spec/02 §2、spec/04 §1） =================
+
+def test_inquiry_classification_covers_every_case():
+    """验收 02 引擎侧：6 个病例各测切题 / 重复 / 无关三类判定。"""
+    from app.core.case_repository import CaseRepository
+
+    repo = CaseRepository()
+    chit_chat = "你最喜欢的电影是什么"
+    checked = 0
+    for case_id in repo.ids():
+        data = repo.require(case_id)
+        engine = AgentEngine(case_data=data)
+        points = [p for p in (data.get("inquiry_points") or []) if isinstance(p, str) and p.strip()]
+        assert points, f"{case_id} 没有 inquiry_points，无法测切题判定"
+
+        question = points[0]
+        assert engine.classify_inquiry(question) == "relevant", (
+            f"{case_id} 的病例问句没被判切题：{question} -> {engine.last_question_kind}"
+        )
+        assert engine.classify_inquiry(question) == "repeat", (
+            f"{case_id} 同一句第二次问没被判重复：{question}"
+        )
+        # 归一化后同一句（换标点 / 加空格）仍算重复
+        noisy = question.replace("？", "? ") + "  "
+        assert engine.classify_inquiry(noisy) == "repeat", f"{case_id} 归一化后没判重复：{noisy}"
+
+        assert engine.classify_inquiry(chit_chat) == "irrelevant", (
+            f"{case_id} 把闲聊判成了切题：{chit_chat} -> {engine.last_question_kind}"
+        )
+        checked += 1
+    assert checked == 6, f"只覆盖了 {checked} 个病例"
+    print(f"  inquiry classification ok: {checked} 个病例 ×（切题/重复/无关）")
+
+
+def test_inquiry_classification_exposed_without_breaking_return_type():
+    """分类结果对外可见，但 handle_inquiry 仍返回 List[DialogueMessage]。"""
+    from app.core.case_repository import get_case_repository
+
+    data = get_case_repository().require("case_chest_pain_001")
+    engine = AgentEngine(case_data=data)
+    question = "既往有高血压吗？最近有没有停药或漏服降压药？"
+
+    messages = engine.handle_inquiry(question)
+    assert isinstance(messages, list) and messages, "handle_inquiry 必须仍返回非空对话列表"
+    assert messages[0].speaker == "doctor"
+    assert getattr(messages, "question_kind", None) == "relevant", "分类结果没挂到返回值上"
+    assert engine.last_question_kind == "relevant"
+
+    again = engine.handle_inquiry(question)
+    assert getattr(again, "question_kind", None) == "repeat", "第二次问同一句没被判重复"
+    assert isinstance(again, list) and again
+
+    # 裸构造（无病例）不得抛错：判据退化为「无病例语料 → 非重复即无关」
+    bare = AgentEngine()
+    bare_messages = bare.handle_inquiry("随便问问")
+    assert isinstance(bare_messages, list) and bare_messages
+    assert bare.last_question_kind in ("relevant", "repeat", "irrelevant")
+    print("  inquiry api ok: 返回值仍是 list，question_kind 独立暴露")
+
+
+def test_case_validation_reports_missing_field_names():
+    """验收 10：严格档报出缺失字段名，默认档跳过并留痕。"""
+    import json
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    import config
+    from app.core.case_repository import CaseRepository, CaseValidationError
+
+    source = Path(__file__).resolve().parent.parent / "app" / "data" / "cases" / "case_gam_001_common_cold.json"
+    original_strict = getattr(config, "CASE_VALIDATION_STRICT", False)
+    tmp_dir = Path(tempfile.mkdtemp(prefix="clinmind_contract_"))
+    try:
+        (tmp_dir / "cases").mkdir()
+        broken = json.loads(source.read_text(encoding="utf-8-sig"))
+        dropped = [field for field in ("knowledge_card", "differentials") if broken.pop(field, None) is not None]
+        assert dropped == ["knowledge_card", "differentials"], dropped
+        (tmp_dir / "cases" / "case_missing.json").write_text(
+            json.dumps(broken, ensure_ascii=False), encoding="utf-8"
+        )
+
+        config.CASE_VALIDATION_STRICT = False
+        repo = CaseRepository(data_dir=tmp_dir)
+        assert repo.ids() == [], f"默认档不该加载缺字段的病例：{repo.ids()}"
+        assert len(repo.warnings) == 1, repo.warnings
+        for field in dropped:
+            assert field in repo.warnings[0], f"警告里没点名缺失字段 {field}：{repo.warnings[0]}"
+
+        config.CASE_VALIDATION_STRICT = True
+        try:
+            CaseRepository(data_dir=tmp_dir)
+        except CaseValidationError as exc:
+            text = str(exc)
+            assert "case_missing.json" in text, text
+            for field in dropped:
+                assert field in text, f"严格档异常消息没点名缺失字段 {field}：{text}"
+        else:
+            raise AssertionError("严格档没有拒绝缺字段的病例")
+
+        # outcomes 四档结构缺失同样要被点名
+        config.CASE_VALIDATION_STRICT = False
+        broken_outcomes = json.loads(source.read_text(encoding="utf-8-sig"))
+        broken_outcomes["outcomes"].pop("C", None)
+        (tmp_dir / "cases" / "case_missing.json").write_text(
+            json.dumps(broken_outcomes, ensure_ascii=False), encoding="utf-8"
+        )
+        config.CASE_VALIDATION_STRICT = True
+        try:
+            CaseRepository(data_dir=tmp_dir)
+        except CaseValidationError as exc:
+            assert "outcomes.C" in str(exc), str(exc)
+        else:
+            raise AssertionError("严格档没有拒绝 outcomes 缺 C 档的病例")
+    finally:
+        config.CASE_VALIDATION_STRICT = original_strict
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    print("  case contract ok: 严格档点名缺失字段 / 默认档留痕跳过")
+
+
+def test_agent_state_mirrors_emotion_truth():
+    """信任双真值：AgentState 必须是 EmotionEngine 的镜像（空转与事件后都一致）。"""
+    from app.core.session_manager import SimulationSession
+
+    session = SimulationSession("mirror_check", "case_chest_pain_001")
+    assert session.emotion.state.patient_trust == session.agent_engine.state.patient_trust, "初始两账就不一致"
+
+    for _ in range(480):
+        session.tick(1.0)
+
+    emotion, agent = session.emotion.state, session.agent_engine.state
+    assert abs(emotion.patient_trust - agent.patient_trust) < 1e-9, (
+        f"空转 480s 后信任两账不一致：emotion={emotion.patient_trust:.3f} agent={agent.patient_trust:.3f}"
+    )
+    assert abs(emotion.patient_anxiety - agent.patient_anxiety) < 1e-9, (
+        f"患者焦虑两账不一致：emotion={emotion.patient_anxiety:.3f} agent={agent.patient_anxiety:.3f}"
+    )
+    assert abs(emotion.family_anxiety - agent.family_anxiety) < 1e-9, (
+        f"家属焦虑两账不一致：emotion={emotion.family_anxiety:.3f} agent={agent.family_anxiety:.3f}"
+    )
+    assert abs(session.agent_engine.current_trust() - emotion.patient_trust) < 1e-9, (
+        f"current_trust() 读到的不是情绪真值：{session.agent_engine.current_trust():.3f}"
+    )
+
+    # 一次安抚问诊：信任升、焦虑降，两边同步
+    session.emotion.apply_event("COMFORT")
+    assert abs(session.emotion.state.patient_trust - session.agent_engine.state.patient_trust) < 1e-9, (
+        "安抚后信任两账不一致"
+    )
+    assert abs(session.agent_engine.current_trust() - session.emotion.state.patient_trust) < 1e-9
+
+    # 迟到的 observe_action 直接改 AgentState 时，下一次 tick 必须被纠正回情绪真值
+    from app.models.entities import ActionType
+
+    session.agent_engine.observe_action(ActionType.INQUIRY, "安慰患者", safe=True)
+    assert session.agent_engine.state.patient_trust != session.emotion.state.patient_trust
+    session.tick(1.0)
+    assert abs(session.emotion.state.patient_trust - session.agent_engine.state.patient_trust) < 1e-9, (
+        "tick 后没有把 AgentState 纠正回情绪真值"
+    )
+    print(
+        f"  trust mirror ok: 空转 480s 两账 trust={session.emotion.state.patient_trust:.3f}、"
+        f"安抚后一致"
+    )
+
+
+def test_red_line_medication_moves_emotion_once():
+    """E10：开禁忌药必须掉信任、升焦虑，且一次动作只派发一次。"""
+    from app.core.session_manager import SimulationSession
+    from app.models.entities import ActionType
+
+    session = SimulationSession("redline_check", "case_chest_pain_001")
+    before = session.emotion.snapshot()
+
+    # 复刻 routes_action 的用药分支：先 observe_action，再一次 RED_LINE_MED
+    session.agent_engine.observe_action(ActionType.MEDICATION, "阿司匹林", safe=False)
+    delta = session.emotion.apply_event("RED_LINE_MED", {"drug": "阿司匹林"})
+    after = session.emotion.snapshot()
+
+    assert delta["patient_trust"] <= -0.12 + 1e-9, f"红线药没有扣信任：{delta}"
+    assert delta["patient_anxiety"] >= 0.15 - 1e-9, f"红线药没有升患者焦虑：{delta}"
+    assert delta["family_anxiety"] >= 0.15 - 1e-9, f"红线药没有升家属焦虑：{delta}"
+    assert after["patient_trust"] < before["patient_trust"], (before, after)
+    assert after["patient_anxiety"] > before["patient_anxiety"], (before, after)
+    assert after["family_anxiety"] > before["family_anxiety"], (before, after)
+
+    # delta_log 每个指标各记一条：按 metric 去重后，一次动作只该有 1 条红线记录
+    events = [
+        entry.get("event") for entry in session.emotion.delta_log
+        if entry.get("event") == "RED_LINE_MED" and entry.get("metric") == "patient_trust"
+    ]
+    assert len(events) == 1, f"红线药被派发了 {len(events)} 次"
+    # 镜像兜底：observe_action 的直改不会与情绪事件叠加成双倍扣分
+    assert abs(session.agent_engine.state.patient_trust - session.emotion.state.patient_trust) < 1e-9, (
+        f"红线药后两账不一致：agent={session.agent_engine.state.patient_trust:.3f} "
+        f"emotion={session.emotion.state.patient_trust:.3f}"
+    )
+    print(
+        f"  red line med ok: trust {before['patient_trust']:.3f}->{after['patient_trust']:.3f}、"
+        f"anxiety {before['patient_anxiety']:.3f}->{after['patient_anxiety']:.3f}、派发 1 次"
+    )

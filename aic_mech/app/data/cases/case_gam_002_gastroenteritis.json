@@ -661,7 +661,7 @@
     "C": {
       "code": "C",
       "label": "离院",
-      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "condition": "(!treated && trust <= 0.16 && patient_anxiety >= 0.80) || (trust <= 0.05 && elapsed('trust_low') >= 60)",
       "title": "他抱着保温杯走了",
       "narration": "他说一个拉肚子还要抽血查大便，太麻烦，晚上八点还有比赛。护士追出去时，他已经和室友上了共享单车。凌晨两点他因为剧烈腹痛和呕吐被送了回来——这次脱水到了中度。",
       "patient_line": "不查了不查了，我回去喝点热水就好。",
@@ -676,7 +676,7 @@
     "D": {
       "code": "D",
       "label": "死亡/不良事件",
-      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST' || (SBP <= 85 && HR >= 130)",
       "title": "一支不该打的抗凝针",
       "narration": "在容量不足的状态下，你给他皮下打了低分子肝素。当天夜里他吐出咖啡样物，血红蛋白从 152 g/L 掉到 108 g/L。一个本该靠补液盐解决的病人，被一支抗凝针推进了消化道出血的流程。",
       "patient_line": "大夫……我吐的东西怎么是黑的？",

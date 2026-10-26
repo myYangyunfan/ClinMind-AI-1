@@ -632,7 +632,7 @@
     "A": {
       "code": "A",
       "label": "治愈/稳定",
-      "condition": "!has_red_line && treated && SpO2 >= 92 && RR <= 27",
+      "condition": "!has_red_line && treated && SpO2 >= 92 && RR <= 29",
       "title": "三喷之后讲回整句",
       "narration": "第二喷之后五分钟，肩胛不再耸得那么高。二十分钟复测 PEF 从 260 回到 355 L/min，SpO₂ 稳在 96%，她能一口气说完一整句话了。你做的只是先把气道打开，再告诉她：那间画室里的猫，可能得换个地方住了。",
       "patient_line": "谢谢您……我能讲完整句子了，好久没这么顺畅地呼气。",
@@ -648,7 +648,7 @@
     "B": {
       "code": "B",
       "label": "延误",
-      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(treated && SpO2 >= 92 && RR <= 27)",
+      "condition": "!has_red_line && outcome_of('physiology') != 'ARREST' && !(treated && SpO2 >= 92 && RR <= 29)",
       "title": "喘压下去了，炎症还在",
       "narration": "沙丁胺醇让她当场舒服了不少，可你没上激素，也没安排复测。四小时后她又一次喘到只能讲短句，被同学扶着回来。支气管舒张剂打开的是气道，不是炎症——这一课她替你记下了。",
       "patient_line": "医生……我又喘起来了，比刚才还紧。",
@@ -663,7 +663,7 @@
     "C": {
       "code": "C",
       "label": "离院",
-      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "condition": "(!treated && trust <= 0.16 && RR >= 24 && SpO2 <= 94) || (trust <= 0.05 && elapsed('trust_low') >= 60)",
       "title": "她自己走进了电梯",
       "narration": "她说了三次「对不起，麻烦你了」，然后趁护士去拿雾化器的时候自己走了，说不想再给同学添麻烦。两小时后同学打来电话，说她在宿舍楼梯口坐下了，说不出完整的话。",
       "patient_line": "对不起……我自己走就行，不麻烦你们了。",
@@ -678,7 +678,7 @@
     "D": {
       "code": "D",
       "label": "死亡/不良事件",
-      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST' || (SpO2 <= 88 && RR >= 32)",
       "title": "一片止痛药，一次窒息",
       "narration": "她说头痛，你顺手开了一片阿司匹林。二十分钟后哮鸣音突然消失，肺里安静得可怕，SpO₂ 掉到 78%。那不是好转，是气道几乎完全闭合的「静默肺」。肾上腺素推了两轮，插管没能改变结局。",
       "patient_line": "（说不出话，双手抓喉，SpO₂ 78%）",

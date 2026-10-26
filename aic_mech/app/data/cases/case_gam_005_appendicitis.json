@@ -679,7 +679,7 @@
     "C": {
       "code": "C",
       "label": "离院",
-      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "condition": "(!treated && trust <= 0.16 && pain_vas >= 7 && HR >= 95) || (trust <= 0.05 && elapsed('trust_low') >= 60)",
       "title": "他把奶茶又拎回去了",
       "narration": "他嫌禁食禁水太麻烦，也怕耽误下午的上线评审，签了「自动出院」就走了，走的时候还在回消息。第二天凌晨他被同事抬回来，全腹板状腹，体温 39.4℃。",
       "patient_line": "我不做手术，我签个字自己走，出了事我自己负责。",
@@ -694,7 +694,7 @@
     "D": {
       "code": "D",
       "label": "死亡/不良事件",
-      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST' || (SBP <= 90 && HR >= 120 && pain_vas >= 9)",
       "title": "一支溶栓针，一台收不了的手术",
       "narration": "你把他当成了别的病，推了一支阿替普酶。开腹时整个右下腹都是渗血，止血花了四十分钟，视野里分不清哪是阑尾哪是血管。穿孔、出血、感染性休克叠在一起，ICU 住了十九天。",
       "patient_line": "（术后带管，无法应答）",

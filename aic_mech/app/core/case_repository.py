@@ -19,6 +19,35 @@ class CaseValidationError(ValueError):
     """Raised when a bundled case file violates the data contract (D-27)."""
 
 
+# spec/04 §1 的顶层 24 键契约（与 spec/check_cases.py 的 TOP_LEVEL_KEYS 对齐）。
+# 运行期只做「键是否存在 / outcomes 结构是否完整」的粗校验，逐字段内容由离线
+# 的 spec/check_cases.py 负责——这里的目标是让坏病例在启动时就被点名。
+REQUIRED_CASE_KEYS = (
+    "case_id", "title", "difficulty", "difficulty_stars", "chief_complaint", "category",
+    "patient_profile", "initial_vitals", "physical_exam_findings", "lab_and_imaging_reports",
+    "dialogue_scripts", "hemodynamic_rules",
+    "emotion_scripts", "exam_options", "lab_panels", "prescription_rules", "outcomes", "knowledge_card",
+    "present_illness", "risk_factors", "key_positives", "key_negatives", "inquiry_points", "differentials",
+)
+# spec/04 §2：结局必须齐 A/B/C/D 四档，每档是 object
+REQUIRED_OUTCOME_CODES = ("A", "B", "C", "D")
+
+
+def missing_case_fields(value: Dict[str, Any]) -> List[str]:
+    """列出病例缺了哪些 §1 契约字段（含 outcomes 的四档结构）。"""
+    missing: List[str] = [key for key in REQUIRED_CASE_KEYS if key not in value]
+    if "outcomes" in missing:
+        return missing
+    outcomes = value.get("outcomes")
+    if not isinstance(outcomes, dict):
+        missing.append("outcomes(A/B/C/D)")
+        return missing
+    for code in REQUIRED_OUTCOME_CODES:
+        if not isinstance(outcomes.get(code), dict):
+            missing.append(f"outcomes.{code}")
+    return missing
+
+
 class CaseRepository:
     """Read-only repository for the bundled fictional teaching cases."""
 
@@ -29,11 +58,16 @@ class CaseRepository:
         self._warnings: List[str] = []
         self._load_all()
 
-    def _read_json(self, path: Path) -> Dict[str, Any]:
+    def _read_json(self, path: Path, enforce_contract: bool = True) -> Dict[str, Any]:
         with path.open("r", encoding="utf-8-sig") as handle:
             value = json.load(handle)
         if not isinstance(value, dict) or not value.get("case_id"):
             raise CaseValidationError(f"病例文件格式无效（缺 case_id）：{path}")
+        if enforce_contract:
+            missing = missing_case_fields(value)
+            if missing:
+                # 严格档据此拒绝启动；消息里点名缺失字段，便于作者一眼定位。
+                raise CaseValidationError(f"{path.name} 缺少字段：{', '.join(missing)}")
         return value
 
     def _handle_invalid_case(self, path: Path, exc: Exception) -> None:
@@ -64,7 +98,9 @@ class CaseRepository:
             if not path.exists() or path.name == "index.json":
                 continue
             try:
-                data = self._read_json(path)
+                # §1 全键契约只针对 cases/ 下的通用教学病例：data 根下的核心胸痛病例
+                # 由 physiology / guardrail 引擎直接消费，且既有夹具以最小 JSON 构造它。
+                data = self._read_json(path, enforce_contract=path.parent.name == "cases")
             except (OSError, ValueError, json.JSONDecodeError) as exc:
                 # 默认档：坏的可选病例不能挡住核心病例启动，但必须留痕而不是静默吞掉。
                 self._handle_invalid_case(path, exc)

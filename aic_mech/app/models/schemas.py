@@ -61,6 +61,13 @@ class ActionResponse(BaseModel):
     # 问诊拿不到 question_kind 时按 RELEVANT_QUESTION 处理但这里回 False，
     # 表示"事件已兜底应用，判定是猜的"；其他动作 apply_event 成功即为 True。
     emotion_applied: bool = False
+    # 体查拒绝与耗时（验收 GWT 04）：焦虑达阈值时按配置概率拒绝，被拒也计时。
+    refused: bool = False
+    elapsed_seconds: float = 0.0
+    # 检查回报状态（验收 GWT 05）：pending 表示尚未过 TAT，此时 report 必为 null。
+    status: str = "executed"
+    available_at_seconds: Optional[float] = None
+    remaining_seconds: Optional[float] = None
 
 
 class VitalsStreamPayload(BaseModel):

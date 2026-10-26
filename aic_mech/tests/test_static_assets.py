@@ -356,6 +356,84 @@ class TestStaticAssetsConsistency(unittest.TestCase):
         ):
             self.assertIn(guard, code, f"scene.js 缺少缺失字段兜底: {guard}")
 
+    def test_resume_discards_finished_session(self):
+        """验收09：恢复 localStorage 会话前必须识别已结束/已终止，并清除旧 ID 后开新会话。"""
+        code = _slurp(SCENE_JS)
+        # 判定依据必须落在真实快照字段上（is_finished / terminal_reason），而不是只看 HTTP 404。
+        self.assertIn("function sessionEnded()", code, "缺少已结束会话判定函数")
+        self.assertIn("snapshot?.is_finished", code, "判定必须读取 is_finished")
+        self.assertIn("terminal_reason", code, "判定必须读取 terminal_reason")
+        self.assertIn("if(sessionEnded())", code, "恢复路径必须调用 sessionEnded()")
+        # 丢弃旧会话 ID 走 localStorage.removeItem，且恢复失败路径之外还要有至少一处换会话清理。
+        self.assertIn("localStorage.removeItem('clinmind-game-session')", code)
+        self.assertGreaterEqual(
+            code.count("localStorage.removeItem('clinmind-game-session')"),
+            2,
+            "换会话路径必须清除旧会话 ID（404 丢弃之外还需覆盖已结束会话）",
+        )
+        # 用户可感知的说明文案。
+        self.assertIn("上一次训练已结束，已为你开启新会话", code)
+
+    def test_tat_bar_present_and_styled(self):
+        """TAT 检查尾巴：两页有容器、JS 有推进函数、类名在 scene.css 有规则。"""
+        css = _slurp(SCENE_CSS)
+        code = _slurp(SCENE_JS)
+        for name in PAGES:
+            html = _page(name)
+            self.assertIn('class="scene-tat"', html, f"{name} 缺少 TAT 容器")
+            self.assertIn('class="scene-tat-track"', html, f"{name} 缺少 TAT 进度轨道")
+            self.assertIn('class="scene-tat-fill"', html, f"{name} 缺少 TAT 进度填充")
+        for token in ("function renderTat(", "status", "available_at_seconds", "remaining_seconds"):
+            self.assertIn(token, code, f"scene.js 缺少 TAT 实现: {token}")
+        for cls in (
+            "scene-tat",
+            "scene-tat-head",
+            "scene-tat-title",
+            "scene-tat-remaining",
+            "scene-tat-item",
+            "scene-tat-track",
+            "scene-tat-fill",
+            "scene-tat-ready",
+        ):
+            self.assertIn(f".{cls}", css, f"scene.css 缺少 .{cls} 规则")
+
+    def test_phase_bands_consume_phase_tokens(self):
+        """病程三档：映射常量一处维护，三条 --scene-phase-* 变量必须真的被消费。"""
+        css = _slurp(SCENE_CSS)
+        code = _slurp(SCENE_JS)
+        self.assertIn("PHASE_BANDS", code, "缺少病程映射常量")
+        self.assertIn("renderPhase", code, "缺少病程渲染函数")
+        for band in ("stable", "worsen", "crisis"):
+            self.assertIn(f"var(--scene-phase-{band})", css, f"--scene-phase-{band} 未被消费")
+            self.assertIn(f".scene-phase-{band}", css, f"缺少 .scene-phase-{band} 规则")
+        for cls in ("scene-phase-strip", "scene-phase-label", "scene-phase-value"):
+            self.assertIn(f".{cls}", css, f"scene.css 缺少 .{cls} 规则")
+
+    def test_timeline_attribution_formatted(self):
+        """复盘时间线：按时间格式化、禁忌置顶、末尾归因，且数据不足时给兜底文案。"""
+        code = _slurp(SCENE_JS)
+        css = _slurp(SCENE_CSS)
+        for token in (
+            "function renderTimeline(",
+            "formatTimelineOffset",
+            "timelineAttribution",
+            "第 ${Math.floor(total / 60)} 分",
+            "最先出错的一步是",
+            "动作过少，无法归因",
+        ):
+            self.assertIn(token, code, f"scene.js 缺少时间线实现: {token}")
+        for cls in (
+            "scene-timeline",
+            "scene-timeline-item",
+            "scene-timeline-item-fatal",
+            "scene-timeline-invalid",
+            "scene-timeline-time",
+            "scene-timeline-name",
+            "scene-timeline-result",
+            "scene-timeline-attribution",
+        ):
+            self.assertIn(f".{cls}", css, f"scene.css 缺少 .{cls} 规则")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

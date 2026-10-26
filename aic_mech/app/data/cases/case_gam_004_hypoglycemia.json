@@ -660,7 +660,7 @@
     "C": {
       "code": "C",
       "label": "离院",
-      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "condition": "(!treated && trust <= 0.16 && HR >= 100) || (trust <= 0.05 && elapsed('trust_low') >= 60)",
       "title": "他说自己缓一会儿就好",
       "narration": "他把手一挥，说老毛病了，缓一会儿就回去，下午还得接孙女。护士送到门口，看见他扶着墙站了很久才走。两小时后他被晨练的老伙计们抬回来，已经叫不醒了。",
       "patient_line": "我不用查！我自己的身子我自己清楚！",
@@ -675,7 +675,7 @@
     "D": {
       "code": "D",
       "label": "死亡/不良事件",
-      "condition": "has_red_line || outcome_of('physiology') == 'ARREST'",
+      "condition": "has_red_line || outcome_of('physiology') == 'ARREST' || (HR <= 55 && RR <= 12)",
       "title": "先吃药，后拍片",
       "narration": "你把他当成卒中，没做 CT 就推了一支肝素、喂了一片阿司匹林。CT 结果是腔隙灶，没有出血，也没有梗死——血是干净的，问题在血糖，2.6。凌晨他因为硬膜下血肿再次被送来，这一次 CT 上有了东西。",
       "patient_line": "（反应迟钝）大夫……我头怎么这么疼……",

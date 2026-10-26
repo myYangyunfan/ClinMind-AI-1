@@ -213,6 +213,17 @@ EMOTION_TREND_WINDOW_SECONDS: int = 30      # 趋势箭头窗口（秒）
 EMOTION_UI_HINT_MIN_DELTA: float = 0.005    # UI/日志提示阈值（不影响引擎累计）
 
 # ---------------------------------------------------------------------------
+# 交互与 LLM 侧参数（spec/02 §4 检查拒诊、spec/04 §3 检验 TAT、spec/04 §5 LLM 守卫）。
+# API 层此前用 getattr(config, ...) 兜底，这里补上真键，缺省值与兜底值一致。
+# ---------------------------------------------------------------------------
+EXAM_REFUSE_ANXIETY: float = 0.90           # 体查/检查被拒的患者焦虑阈值
+EXAM_REFUSE_PROBABILITY: float = 0.50       # 达到阈值后被拒的概率
+LAB_PENDING_TAT_THRESHOLD_SECONDS: int = 900  # TAT 超过该秒数的检验项进 pending
+LLM_TIMEOUT_SECONDS: float = 8.0            # 统一 LLM 超时（秒）
+LLM_GUARD_MAX_CHARS: int = 220              # LLM 输出单段最大长度
+LLM_GUARD_BLOCK_DIAGNOSIS: bool = True      # 拦截专业诊断名与剂量
+
+# ---------------------------------------------------------------------------
 # P3 接线参数：情绪文案分档 + 处方红线严重度 + 血流动力学规则（spec/01 §1.2/§1.5，
 # spec/02 §K-11）。全部为可注入常量，病例 JSON 的 ``hemodynamic_rules`` 优先。
 # ---------------------------------------------------------------------------

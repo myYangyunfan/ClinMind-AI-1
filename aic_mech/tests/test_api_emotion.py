@@ -132,11 +132,20 @@ class ApiEmotionChannelTests(unittest.TestCase):
 
     # ---------------- action -> event mapping ----------------
     def test_unjudged_inquiry_falls_back_without_claiming_judgement(self):
+        from app.api import routes_action
+
         before = self.workspace()
-        body = self.action("请告诉我胸痛的性质和位置", "inquiry").json()
+        real_split = routes_action._split_inquiry_result
+        # 判定由 agent_engine 提供（engine-dev 已接入三分类）；本用例只锁定
+        # API 层的兜底分支：一旦拿不到 question_kind，必须按 RELEVANT_QUESTION
+        # 落账并如实回 emotion_applied=false。这里把判定「摘掉」，不等 engine 行为。
+        with patch.object(
+            routes_action,
+            "_split_inquiry_result",
+            lambda result: (real_split(result)[0], None),
+        ):
+            body = self.action("请告诉我胸痛的性质和位置", "inquiry").json()
         self.assertIn("emotion_applied", body)
-        # 本 sprint 的 agent_engine 只回对话、不给 question_kind；
-        # 契约要求按 RELEVANT_QUESTION 兜底，但必须如实回 false。
         self.assertIs(body["emotion_applied"], False)
         # 标志是 false，事件本身仍要真的落账：信任 +0.03、患者焦虑 -0.02。
         after = self.workspace()

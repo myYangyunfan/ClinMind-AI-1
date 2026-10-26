@@ -11,6 +11,30 @@ from typing import Dict, Any, Optional, Tuple, List
 import config
 
 
+# 体查拒绝与耗时（验收 GWT 04）。
+# config.py 由 engine-dev 持有，这里一律 getattr 读取：config 里一旦出现同名键
+# 立即生效，无需改动本文件；缺省值与验收标准一致。
+EXAM_REFUSE_ANXIETY_DEFAULT: float = 0.90
+EXAM_REFUSE_PROBABILITY_DEFAULT: float = 0.50
+
+# 超过该 TAT 的检查走 pending + TAT 进度（验收 GWT 05）；≤ 该值的 STAT/床旁
+# 快速项目保持既有「下单即回报」契约，避免打穿 test_v2_regressions.py:118 与
+# test_e2e_edge_cases.py:547 对响应结构的断言。设为 0 即「所有 TAT 都 pending」。
+LAB_PENDING_TAT_THRESHOLD_DEFAULT: float = 900.0
+
+
+def exam_refusal_settings() -> Tuple[float, float]:
+    """(焦虑阈值, 拒绝概率)；概率钳制在 [0, 1]，两者均可用 config 覆盖。"""
+    threshold = float(getattr(config, "EXAM_REFUSE_ANXIETY", EXAM_REFUSE_ANXIETY_DEFAULT))
+    probability = float(getattr(config, "EXAM_REFUSE_PROBABILITY", EXAM_REFUSE_PROBABILITY_DEFAULT))
+    return threshold, max(0.0, min(1.0, probability))
+
+
+def lab_pending_threshold_seconds() -> float:
+    """TAT 超过该秒数的检查才走 pending（config 可覆盖）。"""
+    return float(getattr(config, "LAB_PENDING_TAT_THRESHOLD_SECONDS", LAB_PENDING_TAT_THRESHOLD_DEFAULT))
+
+
 class GuardrailEngine:
     """Hard-track router for clinical physical examinations and objective diagnostics."""
 
@@ -22,15 +46,8 @@ class GuardrailEngine:
         self.lab_panels = [p for p in (self.case_data.get("lab_panels") or []) if isinstance(p, dict)]
         self.exam_options = [x for x in (self.case_data.get("exam_options") or []) if isinstance(x, dict)]
 
-    def _route_by_panel(self, order_name: str) -> Optional[Tuple[bool, Dict[str, Any], str]]:
-        """Route a lab/imaging order against the case's own `lab_panels[].alias`.
-
-        The hard-coded alias table below only knows eight stock panels, so any
-        authored panel outside that list (CRP, chest X-ray, pathogen PCR, CT …)
-        used to fall through to NOT_CONFIGURED while the data sat right there in
-        the case JSON. Matching the case's aliases keeps one source of truth:
-        the case file. Longest alias wins so "血气分析" beats the shorter "血".
-        """
+    def _match_lab_panel(self, order_name: str) -> Optional[Dict[str, Any]]:
+        """病例 ``lab_panels[]`` 里命中的原始定义（最长别名优先）。"""
         name = "".join(order_name.lower().split())
         if not name or not self.lab_panels:
             return None
@@ -41,6 +58,22 @@ class GuardrailEngine:
                 key = "".join(str(alias).lower().split())
                 if key and key in name and len(key) > best_len:
                     best, best_len = panel, len(key)
+        return best
+
+    def find_lab_panel(self, order_name: str) -> Optional[Dict[str, Any]]:
+        """公开查表：同一次检查的多次下单要能认出是同一项。"""
+        return self._match_lab_panel(order_name)
+
+    def _route_by_panel(self, order_name: str) -> Optional[Tuple[bool, Dict[str, Any], str]]:
+        """Route a lab/imaging order against the case's own `lab_panels[].alias`.
+
+        The hard-coded alias table below only knows eight stock panels, so any
+        authored panel outside that list (CRP, chest X-ray, pathogen PCR, CT …)
+        used to fall through to NOT_CONFIGURED while the data sat right there in
+        the case JSON. Matching the case's aliases keeps one source of truth:
+        the case file. Longest alias wins so "血气分析" beats the shorter "血".
+        """
+        best = self._match_lab_panel(order_name)
         if best is None:
             return None
         rep: Dict[str, Any] = {
@@ -83,17 +116,8 @@ class GuardrailEngine:
                 enriched[key] = meta[key]
         return enriched
 
-    def _route_by_exam_option(self, query: str) -> Optional[Tuple[bool, Dict[str, Any], str]]:
-        """Route a physical exam against the case's own ``exam_options[]``.
-
-        The organ-by-organ branches below are wired to the chest-pain case and
-        the catalogue cases only carried a single ``general`` blob, so the five
-        authored bedsides exams of each teaching case were never reachable: the
-        data sat in the JSON while the engine answered "not configured". Here
-        the case file is the single source of truth. Matching mirrors
-        ``_route_by_panel``: whitespace-insensitive, longest keyword wins, and
-        ``name`` doubles as an alias so an exact title always resolves.
-        """
+    def _match_exam_option(self, query: str) -> Optional[Dict[str, Any]]:
+        """病例 ``exam_options[]`` 里命中的原始定义（最长关键词优先）。"""
         name = "".join(str(query or "").lower().split())
         if not name or not self.exam_options:
             return None
@@ -105,6 +129,39 @@ class GuardrailEngine:
                 key = "".join(str(alias).lower().split())
                 if key and key in name and len(key) > best_len:
                     best, best_len = option, len(key)
+        return best
+
+    def find_exam_option(self, query: str) -> Optional[Dict[str, Any]]:
+        """公开查表：拿 exam_id / duration_seconds / required。"""
+        return self._match_exam_option(query)
+
+    def procedure_seconds(self, query: str) -> float:
+        """本次体查/床旁操作应消耗的虚拟秒数。
+
+        优先用 ``exam_options[].duration_seconds``；床旁影像类操作（如 POCUS）
+        在病例里只登记在 ``lab_panels`` 且没有 duration，用其 ``tat_seconds``
+        充当操作耗时（POCUS=300s）。都没有就返回 0——不猜。
+        """
+        option = self._match_exam_option(query)
+        if option and option.get("duration_seconds") is not None:
+            return float(option["duration_seconds"])
+        panel = self._match_lab_panel(query)
+        if panel and panel.get("tat_seconds") is not None:
+            return float(panel["tat_seconds"])
+        return 0.0
+
+    def _route_by_exam_option(self, query: str) -> Optional[Tuple[bool, Dict[str, Any], str]]:
+        """Route a physical exam against the case's own ``exam_options[]``.
+
+        The organ-by-organ branches below are wired to the chest-pain case and
+        the catalogue cases only carried a single ``general`` blob, so the five
+        authored bedsides exams of each teaching case were never reachable: the
+        data sat in the JSON while the engine answered "not configured". Here
+        the case file is the single source of truth. Matching mirrors
+        ``_route_by_panel``: whitespace-insensitive, longest keyword wins, and
+        ``name`` doubles as an alias so an exact title always resolves.
+        """
+        best = self._match_exam_option(query)
         if best is None:
             return None
 

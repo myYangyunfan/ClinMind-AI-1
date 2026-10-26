@@ -15,6 +15,11 @@
 最优久候（long）：最优处置完全相同，但结案前把虚拟时间推到 400 秒 → 命中结局仍必须是 A。
                  这一条锁死「处置正确、只是等久了就判延误」的信任衰减窗口
                  （守门条件用与时间无关的 ``treated``，不是 ``trust > 0.40``）。
+离院（leave）  ：零处置、只把虚拟时间推到 360 秒（trust 衰减到地板 0.15、焦虑升至
+                 0.80 以上），模拟患者/家属放弃等待、签字离院 → 命中结局必须是 C。
+死亡（death）  ：一剂该病例的红线药（LETHAL 或 HARMFUL）后立即结案 → 必须是 D。
+                 D 的首项条件永远是 ``has_red_line``：红线药在任何病例里都不能被
+                 降级成 B/C（安全底线），病例专属的生理死亡条件追加在其后。
 
 时间推进为什么用 tick_all 而不是 HTTP：``/api/action/execute`` 不推进虚拟时钟，
 服务器自身的时钟就是 lifespan 里每秒一次的 ``store.tick_all()``（见
@@ -110,6 +115,20 @@ _A_NODE_RE = re.compile(r"has\('(N\d+)'\)")
 # 「最优久候」场景统一推进秒数：足够让 trust 从 0.44 衰减到地板 0.15。
 LONG_WAIT_SECONDS = 400
 
+# 「离院」场景统一推进秒数：trust 衰减到地板、焦虑升到天花板附近。
+# 胸痛病例必须 < 420 秒（S1 危象持续 420 秒后才自发性破裂），否则会走进 D。
+LEAVE_TICKS = 360
+
+# 「死亡」场景：每个病例各自的一条红线药（prescription_rules.verdict == RED_LINE）。
+DEATH_ACTIONS: Dict[str, List[Action]] = {
+    "case_chest_pain_001": [("medication", "阿司匹林", {"dose": 300, "unit": "mg"})],
+    "case_gam_001_common_cold": [("medication", "阿司匹林肠溶片", {"dose": 300, "unit": "mg"})],
+    "case_gam_002_gastroenteritis": [("medication", "阿司匹林肠溶片", {"dose": 300, "unit": "mg"})],
+    "case_gam_003_asthma": [("medication", "阿司匹林肠溶片", {"dose": 300, "unit": "mg"})],
+    "case_gam_004_hypoglycemia": [("medication", "阿司匹林肠溶片", {"dose": 300, "unit": "mg"})],
+    "case_gam_005_appendicitis": [("medication", "注射用阿替普酶", {"dose": 50, "unit": "mg"})],
+}
+
 
 def _load_case(path: str) -> Dict[str, Any]:
     return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -145,11 +164,12 @@ def _submit(client: TestClient, session_id: str, diagnosis: str) -> Dict[str, An
 
 
 def _run(client: TestClient, case_id: str, spec: Dict[str, Any], best: bool,
-         ticks: int | None = None) -> Dict[str, Any]:
+         ticks: int | None = None,
+         actions: List[Action] | None = None) -> Dict[str, Any]:
     session_id = _start(client, case_id)
-    if best:
-        for action_type, content, params in spec["best"]:
-            _act(client, session_id, action_type, content, params)
+    planned: List[Action] = actions if actions is not None else (spec["best"] if best else [])
+    for action_type, content, params in planned:
+        _act(client, session_id, action_type, content, params)
     _tick(int(spec["ticks"] if ticks is None else ticks))
 
     session = SessionStore.get_instance().get_session(session_id)
@@ -168,8 +188,12 @@ def _run(client: TestClient, case_id: str, spec: Dict[str, Any], best: bool,
         "nodes": have_nodes,
         "required_nodes": required_nodes,
         "missing_nodes": missing,
-        "vitals": {k: context.get(k) for k in ("HR", "SBP", "DBP", "SpO2", "RR", "pain_vas", "trust")},
+        "vitals": {k: context.get(k) for k in (
+            "HR", "SBP", "DBP", "SpO2", "RR", "pain_vas", "trust",
+            "patient_anxiety", "family_anxiety",
+        )},
         "treated": context.get("treated"),
+        "has_red_line": context.get("has_red_line"),
         "virtual_seconds": getattr(session, "virtual_seconds", None),
         "state": str(getattr(context.get("outcomes"), "get", lambda *_: None)("physiology")),
     }
@@ -186,8 +210,14 @@ def main() -> int:
         instant = _run(client, case_id, spec, best=False, ticks=0)
         # 最优处置 + 400 秒久候：处置正确就不该因时间流逝被判延误。
         long_wait = _run(client, case_id, spec, best=True, ticks=LONG_WAIT_SECONDS)
+        # 离院：零处置 + 360 秒，trust 落到地板、焦虑升高 → C。
+        leave = _run(client, case_id, spec, best=False, ticks=LEAVE_TICKS)
+        # 死亡：该病例的一条红线药 → has_red_line → D。
+        death = _run(client, case_id, spec, best=False, ticks=0,
+                     actions=DEATH_ACTIONS[case_id])
         rows.append(
-            {"case_id": case_id, "idle": idle, "best": best, "instant": instant, "long": long_wait}
+            {"case_id": case_id, "idle": idle, "best": best, "instant": instant,
+             "long": long_wait, "leave": leave, "death": death}
         )
 
         if idle["code"] == "A":
@@ -204,20 +234,33 @@ def main() -> int:
                 f"{case_id} 最优处置后等待 {LONG_WAIT_SECONDS} 秒未命中 A：实际 {long_wait['code']}"
                 f"（{long_wait['label']}），treated={long_wait['treated']}，体征 {long_wait['vitals']}"
             )
+        if leave["code"] != "C":
+            failures.append(
+                f"{case_id} 离院场景未命中 C：实际 {leave['code']}（{leave['label']}）"
+                f"，treated={leave['treated']}，体征 {leave['vitals']}"
+            )
+        if death["code"] != "D":
+            failures.append(
+                f"{case_id} 死亡场景未命中 D：实际 {death['code']}（{death['label']}）"
+                f"，has_red_line={death['has_red_line']}，体征 {death['vitals']}"
+            )
 
-    header = f"{'病例':<28}{'场景':<10}{'结局':<4}{'label':<10}{'缺失节点':<16}{'HR/SBP/trust/treated':<24}"
+    header = f"{'病例':<28}{'场景':<10}{'结局':<4}{'label':<10}{'缺失节点':<16}{'HR/SBP/trust/anx/treated':<34}"
     print("=" * len(header) * 2)
     print(header)
     print("-" * len(header) * 2)
     for row in rows:
-        for scene in ("instant", "idle", "best", "long"):
+        for scene in ("instant", "idle", "best", "long", "leave", "death"):
             item = row[scene]
             vit = item["vitals"]
-            vitals_txt = f"{vit['HR']:.1f}/{vit['SBP']:.1f}/{vit['trust']:.2f}/{item['treated']}"
+            vitals_txt = (
+                f"{vit['HR']:.1f}/{vit['SBP']:.1f}/{vit['trust']:.2f}"
+                f"/{vit['patient_anxiety']:.2f}/{item['treated']}"
+            )
             label = str(item["label"] or "")
             print(
                 f"{row['case_id']:<28}{scene:<10}{str(item['code']):<4}{label:<10}"
-                f"{','.join(item['missing_nodes']) or '-':<16}{vitals_txt:<24}"
+                f"{','.join(item['missing_nodes']) or '-':<16}{vitals_txt:<34}"
             )
     print("=" * len(header) * 2)
 
@@ -231,7 +274,8 @@ def main() -> int:
             print("  - " + line)
         return 1
 
-    print(f"\n[OK] {len(rows) * 4} 个场景全部符合预期（瞬时/空转≠A，最优=A，最优久候 400 s 仍=A）。")
+    print(f"\n[OK] {len(rows) * 6} 个场景全部符合预期"
+          f"（瞬时/空转≠A，最优=A，最优久候 400 s 仍=A，离院=C，死亡=D）。")
     return 0
 
 

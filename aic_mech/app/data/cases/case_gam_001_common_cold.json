@@ -643,7 +643,7 @@
     "C": {
       "code": "C",
       "label": "离院",
-      "condition": "(trust <= 0.10 && elapsed('trust_low') >= 60) || (trust <= 0.05 && negative_streak >= 3)",
+      "condition": "(!treated && trust <= 0.16 && family_anxiety >= 0.80) || (trust <= 0.05 && elapsed('trust_low') >= 60)",
       "title": "他拎着药单走了",
       "narration": "他把化验单往桌上一拍，说一个感冒查血查了这么久，你们这儿就是想多收钱。护士追到门口，只看见他拎着布袋往公交站走。两天后他在社区药店买了三种感冒药一起吃，第三天因为恶心呕吐又来了一趟。",
       "patient_line": "不用查了，我自己上药店买点药就行。",

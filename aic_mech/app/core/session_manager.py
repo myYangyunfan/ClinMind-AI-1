@@ -57,6 +57,10 @@ class SimulationSession:
         # 5-second emotion settlement engine (spec/05 §3)
         self.emotion: EmotionEngine = EmotionEngine(EmotionState())
         self.emotion.sync_clinical_state(self.physiology_engine.get_state())
+        # 唯一真值在 EmotionEngine：每次结算/事件后把三真值镜像进 AgentState，
+        # 台词分档、诚实病史解锁（agent_engine 的 0.50 线）、离院叙事读同一个数。
+        self.emotion.on_state_change = self._mirror_emotion
+        self._mirror_emotion()
         self.emotion_accum: float = 0.0
 
         # Action history and final report
@@ -66,6 +70,14 @@ class SimulationSession:
         self.spontaneous_dialogues: List[DialogueMessage] = []
 
     # -- terminal state -----------------------------------------------------
+    def _mirror_emotion(self, emotion_state: Optional[EmotionState] = None) -> None:
+        """把情绪三真值镜像进 AgentState（EmotionEngine 是唯一真值）。"""
+        state = emotion_state if emotion_state is not None else self.emotion.state
+        agent_state = self.agent_engine.state
+        agent_state.patient_trust = state.patient_trust
+        agent_state.patient_anxiety = state.patient_anxiety
+        agent_state.family_anxiety = state.family_anxiety
+
     @property
     def terminal_reason(self) -> Optional[str]:
         """Effective terminal reason, including an emotion-driven departure."""
@@ -119,7 +131,7 @@ class SimulationSession:
             self.emotion.sync_clinical_state(self.physiology_engine.get_state())
             self.emotion.tick(dt)
             self.emotion_accum = self.emotion.accumulator
-            self.agent_engine.state.patient_anxiety = self.emotion.state.patient_anxiety
+            self._mirror_emotion()
             self._refresh_terminal()
             return vitals
 
@@ -162,7 +174,9 @@ class SessionStore:
                     value = PatientStateEnum(value)
                 setattr(session.physiology_engine, key, value)
             session.emotion.sync_clinical_state(session.physiology_engine.get_state())
-            session.agent_engine.state.patient_anxiety = session.emotion.state.patient_anxiety
+            # load() 造的是新引擎：重新挂镜像回调，并立刻把快照里的情绪值推给 AgentState
+            session.emotion.on_state_change = session._mirror_emotion
+            session._mirror_emotion()
             if data.get("assessment"):
                 session.final_assessment = OSCEAssessment.model_validate(data["assessment"])
             self._sessions[session.session_id] = session
